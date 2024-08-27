@@ -53,7 +53,7 @@ def receive_msg(s: socket.socket) -> Optional[str]:
 if __name__ == "__main__":
     # AF_INET for IPv4 and SOCK_STREAM for TCP
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    host = os.environ["SERVER_HOST"]
+    host = os.environ.get("SERVER_HOST", "localhost")
     port = os.environ.get("PORT", 8000)
 
     try:
@@ -74,6 +74,9 @@ if __name__ == "__main__":
         # send input to the server
         msg = input("> ")
         send_msg(s, msg)
+        if msg == "END":
+            print("bye")
+            sys.exit(0)
 
         # receive response
         res = receive_msg(s)
