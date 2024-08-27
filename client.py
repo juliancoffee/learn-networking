@@ -68,7 +68,7 @@ if __name__ == "__main__":
         # ping-pong just in case
         send_msg(s, "PING")
         if (x := receive_msg(s)) != "PONG":
-            print(f"Server doesn't respond with PONG, but instead with {x}")
+            print(f"Server doesn't respond with PONG, but instead with {x!r}")
             sys.exit(1)
 
         # send input to the server
