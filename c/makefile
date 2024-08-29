@@ -22,5 +22,14 @@ tcp_client: build/tcp_client
 	@echo ">> running"
 	@./build/tcp_client
 
+build/test: test.c makefile
+	@echo ">> building"
+	mkdir -p build/
+	$(CC) $(CFLAGS) test.c -o build/test
+
+test: build/test
+	@echo ">> running"
+	@./build/test
+
 clean:
 	rm -rf build/*
