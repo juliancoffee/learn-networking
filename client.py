@@ -50,9 +50,7 @@ def receive_msg(s: socket.socket) -> Optional[str]:
 
         return buffer.decode("utf-8")
 
-if __name__ == "__main__":
-    # AF_INET for IPv4 and SOCK_STREAM for TCP
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+def connect(s: socket.socket) -> None:
     host = os.environ.get("SERVER_HOST", "localhost")
     port = os.environ.get("PORT", 8000)
 
@@ -81,3 +79,9 @@ if __name__ == "__main__":
         # receive response
         res = receive_msg(s)
         print(f"[ {res}")
+
+if __name__ == "__main__":
+    # AF_INET for IPv4 and SOCK_STREAM for TCP
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    with s:
+        connect(s)

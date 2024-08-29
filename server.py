@@ -47,25 +47,24 @@ def handle_connection(client: socket.socket, addr: tuple[str, int]) -> None:
             send_msg(client, "PONG")
         else:
             print(f"client didn't send ping first, but {x!r}")
-            client.close()
+            client.shutdown(socket.RDWR)
             return
 
         msg = receive_msg(client)
         if msg is None:
             print(f"client sent an empty message or disconnected")
-            client.close()
+            client.shutdown(socket.RDWR)
             return
 
         if msg == "END":
             print(f"client {hostname}:{port} has disconnected")
-            client.close()
+            client.shutdown(socket.RDWR)
             return
 
         caps = msg.upper()
         send_msg(client, caps)
 
-if __name__ == "__main__":
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+def serve(s: socket.socket) -> None:
     host = os.environ.get("SERVER_HOST", "localhost")
     port = os.environ.get("PORT", 8000)
     s.bind((host, port))
@@ -73,4 +72,10 @@ if __name__ == "__main__":
 
     while True:
         client, client_addr = s.accept()
-        handle_connection(client, client_addr)
+        with client:
+            handle_connection(client, client_addr)
+
+if __name__ == "__main__":
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    with s:
+        serve(s)
