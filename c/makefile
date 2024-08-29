@@ -1,5 +1,5 @@
 CC=clang
-CFLAGS=-std=c17
+CFLAGS=-std=c17 -Wall -Wextra -pedantic
 
 all:
 	@echo "hi, run individual target"
