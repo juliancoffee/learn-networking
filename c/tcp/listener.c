@@ -8,51 +8,7 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 
-void fill_addr_ipv4(
-    struct sockaddr *ai_addr,
-    char *dst,
-    int dst_len
-) {
-    /*
-     * look, this simply shouldn't work
-     *
-     * but everyone uses it, because it works
-     * and the reason why it works is probably because
-     * everyone uses it
-     *
-     * addrinfo->ai_addr is sockaddr, which is a "generic" struct that is
-     * (kind of) large enough to work with both sockaddr_in and sockaddr_in6
-     *
-     * which is why you can cast them back and forth, as long as it's the right
-     * address family.
-     *
-     * cough-cough
-     * I asked ChatGPT and he said something about "well, but POSIX" and
-     * "common initial sequence"
-     * end of cough-cough
-     *
-     * Common Initial Sequence is kinda exists, but requires unions.
-     * And also, while you can access them in a (probably) safe way, Common
-     * Initial Sequence doesn't change aliasing rules, so in some cases,
-     * compiler still can bite you.
-     */
-    struct sockaddr_in *addr = (struct sockaddr_in *)ai_addr;
-
-    inet_ntop(
-            AF_INET,
-            &(addr->sin_addr),
-            dst,
-            dst_len
-    );
-}
-
-unsigned short get_port_ipv4(struct sockaddr *ai_addr) {
-    /*
-     * getaddrinfo() returns port in a network-order endiannes, live with it
-     */
-    unsigned short port = ntohs(((struct sockaddr_in *)ai_addr)->sin_port);
-    return port;
-}
+#include "common.h"
 
 /*
  * handles the client request
@@ -84,7 +40,7 @@ void handle_client(int sockfd) {
     // one additional byte to store null terminator
     char size_header[5];
     memset(size_header, 0, sizeof size_header);
-    recv(sockfd, size_header, 4, 0);
+    recvall(sockfd, size_header, (sizeof size_header) - 1, 0);
 
     printf("<> header is (%s)\n", size_header);
     unsigned short size;
@@ -96,13 +52,13 @@ void handle_client(int sockfd) {
     char *msg_buff = calloc(msg_buff_size, sizeof(char));
 
     // get the message
-    recv(sockfd, msg_buff, (size_t)size, 0);
+    recvall(sockfd, msg_buff, (size_t)size, 0);
     printf("<> the message is (%s)\n", msg_buff);
 
     // reverse and send back
     rev_string_inplace(msg_buff, (size_t)size);
     printf("<> the reversed message is (%s)\n", msg_buff);
-    send(sockfd, msg_buff, (size_t)size, 0);
+    sendall(sockfd, msg_buff, (size_t)size, 0);
 
     // shut down the connection
     shutdown(sockfd, SHUT_RDWR);
@@ -163,10 +119,9 @@ int main(void) {
         return 1;
     }
 
-    char addr_str_buff[INET_ADDRSTRLEN];
-    fill_addr_ipv4(res->ai_addr, addr_str_buff, sizeof addr_str_buff);
-    unsigned short port = get_port_ipv4(res->ai_addr);
-    printf("bind to %s:%d\n", addr_str_buff, port);
+    char *host_port = get_host_port_ipv4(res->ai_addr);
+    printf("bind to %s\n", host_port);
+    free(host_port);
 
     // signal that you're ready to accept connections
     const int backlog = 10;
@@ -193,14 +148,9 @@ int main(void) {
             return 1;
         }
 
-        char client_addr_str_buff[INET_ADDRSTRLEN];
-        fill_addr_ipv4(
-                (struct sockaddr *)&client_addr,
-                client_addr_str_buff,
-                sizeof client_addr_str_buff
-        );
-        unsigned short port = get_port_ipv4((struct sockaddr *)&client_addr);
-        printf("got client from %s:%d\n", addr_str_buff, port);
+        char *host_port = get_host_port_ipv4((struct sockaddr *)&client_addr);
+        printf("got client from %s\n", host_port);
+        free(host_port);
 
         // handle client
         handle_client(client_sockfd);
