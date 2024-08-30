@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
-//#include <sys/types.h>
+#include <unistd.h>
+#include <sys/errno.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <arpa/inet.h>
@@ -52,6 +54,63 @@ unsigned short get_port_ipv4(struct sockaddr *ai_addr) {
     return port;
 }
 
+/*
+ * handles the client request
+ *
+ * the protocol is similar to one in Python's program, but it's one-shot
+ * you connect, make a request, get a response, it's over, almost like HTTP
+ *
+ * also, instead of all caps, we will do reverse, because why not?
+ */
+void swap_chars(char *a, char *b) {
+    char tmp = *a;
+    *a = *b;
+    *b = tmp;
+}
+
+void rev_string_inplace(char *string, size_t len) {
+    size_t stop = len / 2;
+
+    for (size_t i = 0; i < stop; i++) {
+        char *first = &string[i];
+        char *last = &string[len - i - 1];
+        swap_chars(first, last);
+    }
+}
+
+void handle_client(int sockfd) {
+    printf("* hi from handler process\n");
+
+    // one additional byte to store null terminator
+    char size_header[5];
+    memset(size_header, 0, sizeof size_header);
+    recv(sockfd, size_header, 4, 0);
+
+    printf("<> header is (%s)\n", size_header);
+    unsigned short size;
+    sscanf(size_header, "%04hd", &size);
+    printf("<> size is %hd\n", size);
+
+    // one more byte to fill with a null terminator
+    size_t msg_buff_size = (size_t)size + 1;
+    char *msg_buff = calloc(msg_buff_size, sizeof(char));
+
+    // get the message
+    recv(sockfd, msg_buff, (size_t)size, 0);
+    printf("<> the message is (%s)\n", msg_buff);
+
+    // reverse and send back
+    rev_string_inplace(msg_buff, (size_t)size);
+    printf("<> the reversed message is (%s)\n", msg_buff);
+    send(sockfd, msg_buff, (size_t)size, 0);
+
+    // shut down the connection
+    shutdown(sockfd, SHUT_RDWR);
+
+    // free the buff
+    free(msg_buff);
+}
+
 #define PORT "8000"
 #define HOST "localhost"
 
@@ -88,8 +147,19 @@ int main(void) {
         return 1;
     }
 
+    int yes = 1;
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) < 0) {
+        fprintf(stderr, "setsockopt() errored\n");
+        return 1;
+    }
+
     if (bind(sockfd, res->ai_addr, res->ai_addrlen) < 0) {
+        int err_status = errno;
         fprintf(stderr, "bind() errored\n");
+        // in theory, this shouldn't happen after previous call, but who knows
+        if (err_status == EADDRINUSE) {
+            fprintf(stderr, "address in use\n");
+        }
         return 1;
     }
 
@@ -103,10 +173,13 @@ int main(void) {
     // god this is much easier compared to stuff before
     if (listen(sockfd, backlog) < 0) {
         fprintf(stderr, "listen() errored\n");
+        return 1;
     }
     printf("listening...\n");
 
     for (;;) {
+        printf("accepting...\n");
+
         struct sockaddr_in client_addr;
         socklen_t addr_len = (socklen_t) sizeof client_addr;
         int client_sockfd = accept(
@@ -114,6 +187,11 @@ int main(void) {
                 (struct sockaddr *)&client_addr,
                 &addr_len
         );
+
+        if (client_sockfd < 0) {
+            fprintf(stderr, "accept() errored\n");
+            return 1;
+        }
 
         char client_addr_str_buff[INET_ADDRSTRLEN];
         fill_addr_ipv4(
@@ -124,10 +202,19 @@ int main(void) {
         unsigned short port = get_port_ipv4((struct sockaddr *)&client_addr);
         printf("got client from %s:%d\n", addr_str_buff, port);
 
-        // handle it
-        (void)client_sockfd;
+        // handle client
+        handle_client(client_sockfd);
+
+        // free
+        close(client_sockfd);
     }
 
-    // won't get cleaned if any of errors happen, just saying
+    /*
+     * won't get cleaned if any of errors happen because the code simply won't
+     * run to this point, just saying
+     *
+     * but in this case we 'return 1' out of the program, so the "destructor"
+     * shall probably run some way or another by OS for us
+     */
     freeaddrinfo(res);
 }
