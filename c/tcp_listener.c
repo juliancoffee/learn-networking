@@ -6,7 +6,11 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 
-void fill_addr(struct addrinfo *res, char *dst, int dst_len) {
+void fill_addr_ipv4(
+    struct sockaddr *ai_addr,
+    char *dst,
+    int dst_len
+) {
     /*
      * look, this simply shouldn't work
      *
@@ -30,14 +34,22 @@ void fill_addr(struct addrinfo *res, char *dst, int dst_len) {
      * Initial Sequence doesn't change aliasing rules, so in some cases,
      * compiler still can bite you.
      */
-    struct sockaddr_in *addr = (struct sockaddr_in *)res->ai_addr;
+    struct sockaddr_in *addr = (struct sockaddr_in *)ai_addr;
 
     inet_ntop(
-            res->ai_family,
+            AF_INET,
             &(addr->sin_addr),
             dst,
             dst_len
     );
+}
+
+unsigned short get_port_ipv4(struct sockaddr *ai_addr) {
+    /*
+     * getaddrinfo() returns port in a network-order endiannes, live with it
+     */
+    unsigned short port = ntohs(((struct sockaddr_in *)ai_addr)->sin_port);
+    return port;
 }
 
 #define PORT "8000"
@@ -69,7 +81,6 @@ int main(void) {
         fprintf(stderr, "getaddrinfo() errored\n");
         return 1;
     }
-    unsigned short port = ntohs(((struct sockaddr_in *)res->ai_addr)->sin_port);
 
     int sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
     if (sockfd < 0) {
@@ -77,13 +88,46 @@ int main(void) {
         return 1;
     }
 
-    int bind_status = bind(sockfd, res->ai_addr, res->ai_addrlen);
-    if (bind_status < 0) {
+    if (bind(sockfd, res->ai_addr, res->ai_addrlen) < 0) {
         fprintf(stderr, "bind() errored\n");
         return 1;
     }
 
     char addr_str_buff[INET_ADDRSTRLEN];
-    fill_addr(res, addr_str_buff, sizeof addr_str_buff);
+    fill_addr_ipv4(res->ai_addr, addr_str_buff, sizeof addr_str_buff);
+    unsigned short port = get_port_ipv4(res->ai_addr);
     printf("bind to %s:%d\n", addr_str_buff, port);
+
+    // signal that you're ready to accept connections
+    const int backlog = 10;
+    // god this is much easier compared to stuff before
+    if (listen(sockfd, backlog) < 0) {
+        fprintf(stderr, "listen() errored\n");
+    }
+    printf("listening...\n");
+
+    for (;;) {
+        struct sockaddr_in client_addr;
+        socklen_t addr_len = (socklen_t) sizeof client_addr;
+        int client_sockfd = accept(
+                sockfd,
+                (struct sockaddr *)&client_addr,
+                &addr_len
+        );
+
+        char client_addr_str_buff[INET_ADDRSTRLEN];
+        fill_addr_ipv4(
+                (struct sockaddr *)&client_addr,
+                client_addr_str_buff,
+                sizeof client_addr_str_buff
+        );
+        unsigned short port = get_port_ipv4((struct sockaddr *)&client_addr);
+        printf("got client from %s:%d\n", addr_str_buff, port);
+
+        // handle it
+        (void)client_sockfd;
+    }
+
+    // won't get cleaned if any of errors happen, just saying
+    freeaddrinfo(res);
 }

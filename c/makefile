@@ -9,7 +9,7 @@ build/tcp_listener: tcp_listener.c
 	mkdir -p build/
 	$(CC) $(CFLAGS) tcp_listener.c -o build/tcp_listener
 
-tcp_listener: build/tcp_listener
+server_tcp: build/tcp_listener
 	@echo ">> running"
 	@./build/tcp_listener
 
