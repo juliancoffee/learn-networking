@@ -37,28 +37,13 @@ void rev_string_inplace(char *string, size_t len) {
 void handle_client(int sockfd) {
     printf("* hi from handler process\n");
 
-    // one additional byte to store null terminator
-    char size_header[5];
-    memset(size_header, 0, sizeof size_header);
-    recvall(sockfd, size_header, (sizeof size_header) - 1, 0);
-
-    printf("<> header is (%s)\n", size_header);
-    unsigned short size;
-    sscanf(size_header, "%04hd", &size);
-    printf("<> size is %hd\n", size);
-
-    // one more byte to fill with a null terminator
-    size_t msg_buff_size = (size_t)size + 1;
-    char *msg_buff = calloc(msg_buff_size, sizeof(char));
-
-    // get the message
-    recvall(sockfd, msg_buff, (size_t)size, 0);
+    char *msg_buff = proto_recv(sockfd);
     printf("<> the message is (%s)\n", msg_buff);
 
     // reverse and send back
-    rev_string_inplace(msg_buff, (size_t)size);
+    rev_string_inplace(msg_buff, strlen(msg_buff));
     printf("<> the reversed message is (%s)\n", msg_buff);
-    sendall(sockfd, msg_buff, (size_t)size, 0);
+    proto_send(sockfd, msg_buff);
 
     // shut down the connection
     shutdown(sockfd, SHUT_RDWR);

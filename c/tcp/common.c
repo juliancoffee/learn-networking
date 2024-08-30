@@ -1,6 +1,8 @@
-#include <sys/socket.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+
+#include <sys/socket.h>
 #include <netdb.h>
 #include <arpa/inet.h>
 
@@ -96,4 +98,48 @@ int sendall(int sockfd, char *buff, size_t len, int flags) {
     }
 
     return wrote;
+}
+
+int proto_send(int sockfd, char *message) {
+    size_t msg_len = strlen(message);
+    if (msg_len > 1000) {
+        return -1;
+    }
+    unsigned short len = (unsigned short)msg_len;
+
+    char *proto_msg;
+    asprintf(&proto_msg, "%04d%s", len, message);
+
+    int res = sendall(sockfd, proto_msg, strlen(proto_msg), 0);
+    free(proto_msg);
+
+    return res;
+}
+
+// returns a null-terminated string from a tcp socket
+// allocates message for you, don't forget to free
+char *proto_recv(int sockfd) {
+    // one additional byte to store null terminator
+    char size_header[5];
+    memset(size_header, 0, sizeof size_header);
+
+    if (recvall(sockfd, size_header, (sizeof size_header) - 1, 0) == 0) {
+        return NULL;
+    }
+
+    printf("<recv> header is (%s)\n", size_header);
+    unsigned short size;
+    sscanf(size_header, "%04hd", &size);
+    printf("<recv> size is %hd\n", size);
+
+    // one more byte to fill with a null terminator
+    size_t msg_buff_size = (size_t)size + 1;
+    char *msg_buff = calloc(msg_buff_size, sizeof(char));
+
+    // get the message
+    if (recvall(sockfd, msg_buff, (size_t)size, 0) == 0) {
+        return NULL;
+    }
+
+    return msg_buff;
 }

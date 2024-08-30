@@ -13,14 +13,14 @@ server: build/listener
 	@echo ">> running"
 	@./build/listener
 
-build/client: client.c
+build/client: client.c common.c common.h
 	@echo ">> building"
 	mkdir -p build/
-	$(CC) $(CFLAGS) client.c -o build/client
+	$(CC) $(CFLAGS) client.c common.c -o build/client
 
 client: build/client
 	@echo ">> running"
-	@./build/client
+	@./build/client "$(message)"
 
 build/test: test.c makefile
 	@echo ">> building"
