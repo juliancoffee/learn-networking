@@ -122,22 +122,21 @@ int main(void) {
     // and no, we can't make kernel to compute this for us :(
     icmp->icmp_cksum = 0;
 
+    // to use with checksum
+    const int icmp_data_size = total - offset;
 
     // wrote icmp header (8 bytes)
     offset += 8;
 
-
-    /*
     // fill payload with increments
     char *payload = buff + offset;
-    for (size_t i = 0; i < total - offset; i++) {
+    for (size_t i = 0; i < total - offset; i += 1) {
         payload[i] = (uint8_t)i;
     }
-    // for some reason it breaks
-    */
 
     // checksum should go at the end
-    icmp->icmp_cksum = checksum((char *)icmp, total - offset);
+    icmp->icmp_cksum = checksum((char *)icmp, icmp_data_size);
+
 
     int send_status = sendto(
         sockfd,
