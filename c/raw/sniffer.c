@@ -5,14 +5,11 @@
 #include <errno.h>
 
 #include <netdb.h>
-//#include <netinet/in.h>
-//#include <netinet/ip.h>
-#include <net/if.h>
-#include <sys/ioctl.h>
 #include <netinet/ip_icmp.h>
 #include <sys/socket.h>
-#include <unistd.h>
+#include <arpa/inet.h>
 
+#include <unistd.h>
 #include "common.h"
 
 void print_hex(char *buff, size_t len) {
@@ -72,8 +69,14 @@ int main(void) {
         printf("ip_ttl: %d\n", ip->ip_ttl);
         printf("ip_p: %d\n", ip->ip_p);
         printf("ip_sum: %d\n", ip->ip_sum);
-        printf("ip_src: %#x\n", *(uint32_t *)&ip->ip_src);
-        printf("ip_dst: %#x\n", *(uint32_t *)&ip->ip_dst);
+
+        char addr_str_buff[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &ip->ip_src, addr_str_buff, sizeof addr_str_buff);
+        printf("ip_src: %s\n", addr_str_buff);
+
+        memset(addr_str_buff, 0, sizeof addr_str_buff);
+        inet_ntop(AF_INET, &ip->ip_dst, addr_str_buff, sizeof addr_str_buff);
+        printf("ip_dst: %s\n", addr_str_buff);
 
         printf("<icmp header> raw\n");
         struct icmp *icmp = (struct icmp *)(buffer + ip_header_size);
