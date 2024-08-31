@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <errno.h>
@@ -59,7 +60,7 @@ void print_parsed_icmp_packet(char *buffer, struct ip *ip, int res) {
     printf("<icmp header> parsed\n");
     printf("icmp_type: %d\n", icmp->icmp_type);
     printf("icmp_code: %d\n", icmp->icmp_code);
-    printf("icmp_cksum: %d\n", icmp->icmp_cksum);
+    printf("icmp_cksum: %d\n", ntohs(icmp->icmp_cksum));
 
     if (icmp->icmp_type == ICMP_ECHOREPLY) {
         /*
@@ -91,6 +92,7 @@ void print_parsed_icmp_packet(char *buffer, struct ip *ip, int res) {
         char *failed_ip_header = buffer + ip_header_size + icmp_header_size;
         struct ip *failed_ip = print_parsed_ip_header(failed_ip_header);
 
+#define PROT_CODE_UDP 17
         if (failed_ip->ip_p == PROT_CODE_UDP) {
             printf("<udp header> parsed\n");
             char *failed_udp_header = failed_ip_header + failed_ip->ip_hl * 4;
@@ -102,6 +104,14 @@ void print_parsed_icmp_packet(char *buffer, struct ip *ip, int res) {
             printf("udp_len: %d\n", len);
             uint16_t cksum = *(uint16_t *)(failed_udp_header + 6);
             printf("udp_cksum: %d\n", cksum);
+        } else {
+            size_t left = res
+                - ip_header_size
+                - icmp_header_size
+                - failed_ip->ip_hl * 4;
+
+            printf("<rest>\n");
+            print_hex(failed_ip_header + failed_ip->ip_hl * 4, left);
         }
     }
 }
@@ -121,10 +131,19 @@ int main(void) {
     char buffer[BUFF_SIZE];
     for (;;) {
         memset(buffer, 0, BUFF_SIZE);
-        int res = read(fd, buffer, BUFF_SIZE);
+
+        struct sockaddr_in addr;
+        socklen_t addr_len = (socklen_t) sizeof addr;
+        int res = recvfrom(
+                fd,
+                buffer,
+                BUFF_SIZE, 0,
+                (struct sockaddr *)&addr,
+                &addr_len
+            );
         if (res < 0) {
-            fprintf(stderr, "read() errored\n");
-            perror("read");
+            fprintf(stderr, "recvfrom() errored\n");
+            perror("recvfrom");
             break;
         }
 
@@ -137,6 +156,9 @@ int main(void) {
             "\x1b[32m <> Caught icmp packet (len=%d):\x1b[0m\n",
             res
         );
+        char *host_port = get_host_port_ipv4((struct sockaddr *)&addr);
+        printf("src: (%s)\n", host_port);
+        free(host_port);
 
         struct ip *ip = print_parsed_ip_header(buffer);
         print_parsed_icmp_packet(buffer, ip, res);

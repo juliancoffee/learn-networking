@@ -11,3 +11,7 @@ build/snif: sniffer.c ../tcp/common.c ../tcp/common.h
 snif: build/snif
 	@echo ">> running"
 	sudo ./build/snif
+
+clean:
+	mkdir -p build/
+	rm build/*
