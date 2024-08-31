@@ -9,7 +9,8 @@
 
 #include "common.h"
 
-#define HOST "127.0.0.1"
+#define SRC_HOST "192.168.1.103"
+#define DEST_HOST "google.com"
 #define PORT "0"
 
 // as you may guess, it was the first time I wrote anything even remotely
@@ -58,12 +59,19 @@ int main(void) {
     }
 
     // I do all of this to get res->ai_addr
-    struct addrinfo *res = NULL;
     struct addrinfo hints;
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET;
 
-    if (getaddrinfo(HOST, PORT, &hints, &res) != 0) {
+    struct addrinfo *res_src = NULL;
+    if (getaddrinfo(SRC_HOST, PORT, &hints, &res_src) != 0) {
+        fprintf(stderr, "getaddrinfo() errored\n");
+        perror("getaddrinfo");
+        return 1;
+    }
+
+    struct addrinfo *res_dest = NULL;
+    if (getaddrinfo(DEST_HOST, PORT, &hints, &res_dest) != 0) {
         fprintf(stderr, "getaddrinfo() errored\n");
         perror("getaddrinfo");
         return 1;
@@ -96,8 +104,8 @@ int main(void) {
     ip->ip_p = 1;
     // please compute for me
     ip->ip_sum = 0;
-    ip->ip_src = ((struct sockaddr_in *)res->ai_addr)->sin_addr;
-    ip->ip_dst = ((struct sockaddr_in *)res->ai_addr)->sin_addr;
+    ip->ip_src = ((struct sockaddr_in *)res_src->ai_addr)->sin_addr;
+    ip->ip_dst = ((struct sockaddr_in *)res_dest->ai_addr)->sin_addr;
 
     // wrote ip header (20 bytes)
     offset += 20;
@@ -143,7 +151,7 @@ int main(void) {
         buff,
         sizeof buff,
         0,
-        res->ai_addr,
+        res_dest->ai_addr,
         sizeof(struct sockaddr_in)
     );
 
