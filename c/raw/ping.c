@@ -9,7 +9,7 @@
 
 #include "common.h"
 
-#define SRC_HOST "192.168.1.103"
+#define SRC_HOST "0.0.0.0"
 #define DEST_HOST "google.com"
 #define PORT "0"
 
