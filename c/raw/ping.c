@@ -11,7 +11,6 @@
 
 #define SRC_HOST "0.0.0.0"
 #define DEST_HOST "google.com"
-#define PORT "0"
 
 // as you may guess, it was the first time I wrote anything even remotely
 // related to binary arithmetic
@@ -48,6 +47,17 @@ uint16_t checksum(char *data, size_t n_chars) {
     return ~final_sum;
 }
 
+void print_hex(char *buff, size_t len) {
+    for (size_t i = 0; i < len; i++) {
+        if (i < len - 1) {
+            printf("%#x:", (unsigned char)buff[i]);
+        } else {
+            printf("%#x", (unsigned char)buff[i]);
+        }
+    }
+    printf("\n");
+}
+
 int main(void) {
     printf("hi, i'm pinger!\n");
 
@@ -64,18 +74,20 @@ int main(void) {
     hints.ai_family = AF_INET;
 
     struct addrinfo *res_src = NULL;
-    if (getaddrinfo(SRC_HOST, PORT, &hints, &res_src) != 0) {
+    if (getaddrinfo(SRC_HOST, NULL, &hints, &res_src) != 0) {
         fprintf(stderr, "getaddrinfo() errored\n");
         perror("getaddrinfo");
         return 1;
     }
+    print_hex(&((struct sockaddr_in *)res_src->ai_addr)->sin_addr, 4);
 
     struct addrinfo *res_dest = NULL;
-    if (getaddrinfo(DEST_HOST, PORT, &hints, &res_dest) != 0) {
+    if (getaddrinfo(DEST_HOST, NULL, &hints, &res_dest) != 0) {
         fprintf(stderr, "getaddrinfo() errored\n");
         perror("getaddrinfo");
         return 1;
     }
+    print_hex(&((struct sockaddr_in *)res_dest->ai_addr)->sin_addr, 4);
 
     // allocate buff
     const int total = 40;
