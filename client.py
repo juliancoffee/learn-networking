@@ -40,14 +40,37 @@ while True:
         else:
             raise e
 
+def fetch_peer_addr() -> tuple[str, int]:
+    s.sendto(b"hi server", (remote_host, remote_port))
+
+    print("<> send a message, fetching the response")
+    server_msg, server_addr = s.recvfrom(100)
+    our_addr_string, peer_addr_string = server_msg.decode("utf-8").split(";")
+
+    our_host, our_port_string = our_addr_string.split(":")
+    our_port = int(our_port_string)
+    print(f"<> server says we are {our_host}:{our_port}")
+
+    peer_host, peer_port_string = peer_addr_string.split(":")
+    peer_port = int(peer_port_string)
+    print(f"<> server says our peer is {peer_host}:{peer_port}")
+    return (peer_host, peer_port)
+
+def hi_peer(peer_host, peer_port):
+    s.sendto(b"hi peer", (peer_host, peer_port))
+    print(f"<> said hello to peer")
+
+def check_peer():
+    msg, addr = s.recvfrom(100)
+    print(f"<> {msg!r} our peer said")
+
 print(f"<> good, ready to connect to {remote_host}:{remote_port}")
-s.sendto(b"hi server", (remote_host, remote_port))
-print("<> send a message, fetching the response")
-peer_addr_string, server_addr = s.recvfrom(100)
-peer_host, peer_port_string = peer_addr_string.decode("utf-8").split(":")
-peer_port = int(peer_port_string)
-print(f"<> server says our peer is {peer_host}:{peer_port}")
-s.sendto(b"hi peer", (peer_host, peer_port))
-print(f"<> said hello to peer")
-msg, addr = s.recvfrom(100)
-print(f"<> {msg!r} our peer said")
+# do it once
+peer_host, peer_port = fetch_peer_addr()
+hi_peer(peer_host, peer_port)
+# do it twice
+peer_host, peer_port = fetch_peer_addr()
+hi_peer(peer_host, peer_port)
+
+# anybody there?
+check_peer()
