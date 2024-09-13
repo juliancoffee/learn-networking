@@ -68,8 +68,6 @@ def check_peer():
 
 print(f"<> good, ready to connect to {remote_host}:{remote_port}")
 peer_host, peer_port = fetch_peer_addr()
-# spam UDP messages, one of them must go through
-for i in range(20):
-    hi_peer(peer_host, peer_port)
+hi_peer(peer_host, peer_port)
 # anybody there?
 check_peer()
