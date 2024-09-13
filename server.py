@@ -25,7 +25,4 @@ def process():
     s.sendto(f"{addr1_string};{addr2_string}".encode('utf-8'), addr1)
     s.sendto(f"{addr2_string};{addr1_string}".encode('utf-8'), addr2)
 
-# do it once
-process()
-# do it twice
 process()
