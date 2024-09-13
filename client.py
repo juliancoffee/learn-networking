@@ -59,10 +59,10 @@ def fetch_peer_addr() -> tuple[str, int]:
     return (peer_host, peer_port)
 
 def hi_peer(peer_host, peer_port):
-    s.sendto(b"hi peer", (peer_host, peer_port))
+    s.sendto(f"hi peer on {peer_host}".encode("utf-8"), (peer_host, peer_port))
     print(f"<> said hello to peer")
 
-def check_peer() -> bytes:
+def check_peer():
     msg, addr = s.recvfrom(100)
     print(f"<> {msg!r} our peer said")
 
