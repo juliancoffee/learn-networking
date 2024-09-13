@@ -62,17 +62,13 @@ def hi_peer(peer_host, peer_port):
     s.sendto(b"hi peer", (peer_host, peer_port))
     print(f"<> said hello to peer")
 
-def check_peer():
+def check_peer() -> bytes:
     msg, addr = s.recvfrom(100)
     print(f"<> {msg!r} our peer said")
 
 print(f"<> good, ready to connect to {remote_host}:{remote_port}")
-# do it once
 peer_host, peer_port = fetch_peer_addr()
 hi_peer(peer_host, peer_port)
-# do it twice
-peer_host, peer_port = fetch_peer_addr()
 hi_peer(peer_host, peer_port)
-
 # anybody there?
 check_peer()
