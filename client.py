@@ -16,6 +16,7 @@ try:
 except Exception as e:
     print("couldn't read the config.toml")
     print(f"{e=}")
+    sys.exit(1)
 
 
 try:
@@ -45,6 +46,7 @@ def fetch_peer_addr() -> tuple[str, int]:
 
     print("<> send a message, fetching the response")
     server_msg, server_addr = s.recvfrom(100)
+    print(f"{server_msg=}")
     our_addr_string, peer_addr_string = server_msg.decode("utf-8").split(";")
 
     our_host, our_port_string = our_addr_string.split(":")
