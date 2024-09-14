@@ -1,3 +1,5 @@
+from typing import Optional
+
 import time
 import socket
 import select
@@ -78,6 +80,7 @@ def prepare_socket(port: Optional[int] = None) -> socket.socket:
                 port += 1
             else:
                 raise e
+    return s
 
 
 def main() -> None:
