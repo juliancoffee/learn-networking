@@ -98,4 +98,4 @@ for i in range(50):
 
 print(f"{miss=}")
 print(f"{got=}")
-print(f"total time: {(time.time_ns() - now)} nanoseconds")
+print(f"total time: {(time.time_ns() - now) / (10 ** 6)} miliseconds")
