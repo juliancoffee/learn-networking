@@ -79,6 +79,8 @@ for i in range(20):
     time.sleep(0.01)
     hi_peer(peer_host, peer_port, dbg=False)
 
+miss = 0
+got = 0
 for i in range(50):
     print(f"<{i}>", end='')
     # repeat
@@ -86,4 +88,10 @@ for i in range(50):
     # anybody there?
     ok_read, ok_write, errs = select.select([s], [], [], 1)
     if ok_read:
+        got += 1
         check_peer(ok_read[0])
+    else:
+        miss += 1
+
+print(f"{miss=}")
+print(f"{got=}")
