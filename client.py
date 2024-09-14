@@ -1,3 +1,4 @@
+import time
 import socket
 import select
 import sys
@@ -76,7 +77,7 @@ peer_host, peer_port = fetch_peer_addr()
 print("<> spamming our peer")
 for i in range(20):
     time.sleep(0.01)
-    hi_peer(peer_host, peer_port, dbg=false)
+    hi_peer(peer_host, peer_port, dbg=False)
 
 for i in range(50):
     print(f"<{i}>", end='')
