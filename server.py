@@ -176,3 +176,5 @@ def loop() -> Never:
                 handle_join(s, mapping, our_addr, msg)
             elif cmd == "EXIT":
                 handle_exit(mapping, msg)
+
+loop()
