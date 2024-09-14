@@ -88,7 +88,7 @@ for i in range(50):
     # repeat
     hi_peer(peer_host, peer_port, dbg=False)
     # anybody there?
-    ok_read, ok_write, errs = select.select([s], [], [], 1)
+    ok_read, ok_write, errs = select.select([s], [], [], 0.15)
     if ok_read:
         got += 1
         check_peer(ok_read[0])
