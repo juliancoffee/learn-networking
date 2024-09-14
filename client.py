@@ -84,8 +84,7 @@ got = 0
 
 now = time.time_ns()
 for i in range(50):
-    if i % 10 != 0:
-        print(f"<{i}th iteration>")
+    print(f"<{i}th iteration>")
     # repeat
     hi_peer(peer_host, peer_port, dbg=False)
     # anybody there?
