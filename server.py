@@ -1,20 +1,9 @@
-from typing import Optional
+from typing import Optional, Never
 
 import select
 import socket
 import sys
 
-try:
-    port = int(sys.argv[1])
-    print(f"<> using port: {port}")
-except (ValueError, IndexError):
-    port = 11_111
-    print("<err> couldn't get the port")
-    print(f"<> using default port: {port}")
-
-s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-s.bind(("0.0.0.0", port))
-print("<> bound and ready to receive messages")
 
 # pair of addresses
 Addr = tuple[str, int]
@@ -105,6 +94,18 @@ class Mapping:
         else:
             return None
 
+    def remove_entry(self, ids: tuple[str, str]):
+        to_remove = None
+        for i, entry in enumerate(self.mapping):
+            if entry.corresponds(ids):
+                to_remove = i
+                break
+
+        if to_remove is not None:
+            self.mapping.pop(to_remove)
+
+
+
 def addrs_to_string(addr_a: Addr, addr_b: Addr) -> str:
     def addr_to_string(addr: Addr) -> str:
         host, port = addr
@@ -113,38 +114,65 @@ def addrs_to_string(addr_a: Addr, addr_b: Addr) -> str:
     return ";".join((addr_to_string(addr_a), addr_to_string(addr_b)))
 
 
-mapping = Mapping()
-while True:
-    ok_read, ok_write, errs = select.select([s], [], [])
-    if ok_read:
-        s = ok_read[0]
-        msg_bytes, our_addr = s.recvfrom(100)
-        msg = msg_bytes.decode('utf-8')
+def handle_join(s: socket.socket, mapping: Mapping, our_addr: Addr, msg: str):
+    our_id, their_id = msg.split("@")
+    id_pair = our_id, their_id
 
-        print(f"<> [{our_addr}] send us a message. <{msg}> they said")
+    if mapping.find_entry(id_pair) is None:
+        print(f"<> registered new mapping: {our_id} @ {their_id}")
+        mapping.register(id_pair, our_addr)
+    else:
+        entry = mapping.register(id_pair, our_addr)
 
-        our_id, their_id = msg.split("@")
-        id_pair = our_id, their_id
+        addr_pair = entry.get_full_pair(id_pair)
+        if addr_pair is None:
+            print("<> another hit to {our_id} @ {their_id}")
+            print("<> but the mapping is incomplete")
+            return
 
-        if mapping.find_entry(id_pair) is None:
-            print(f"<> registered new mapping: {our_id} @ {their_id}")
-            mapping.register(id_pair, our_addr)
-        else:
-            entry = mapping.register(id_pair, our_addr)
+        our_addr, their_addr = addr_pair
+        s.sendto(
+            addrs_to_string(our_addr, their_addr).encode('utf-8'),
+            our_addr
+        )
+        s.sendto(
+            addrs_to_string(their_addr, our_addr).encode('utf-8'),
+            their_addr
+        )
+        print(f"<> send their addresses to both: {our_id} @ {their_id}")
 
-            addr_pair = entry.get_full_pair(id_pair)
-            if addr_pair is None:
-                print("<> another hit to {our_id} @ {their_id}")
-                print("<> but the mapping is incomplete")
-                continue
+def handle_exit(mapping: Mapping, msg: str):
+    our_id, their_id = msg.split("@")
+    id_pair = our_id, their_id
 
-            our_addr, their_addr = addr_pair
-            s.sendto(
-                addrs_to_string(our_addr, their_addr).encode('utf-8'),
-                our_addr
-            )
-            s.sendto(
-                addrs_to_string(their_addr, our_addr).encode('utf-8'),
-                their_addr
-            )
-            print(f"<> send their addresses to both: {our_id} @ {their_id}")
+    mapping.remove_entry(id_pair)
+
+
+def loop() -> Never:
+    try:
+        port = int(sys.argv[1])
+        print(f"<> using port: {port}")
+    except (ValueError, IndexError):
+        port = 11_111
+        print("<err> couldn't get the port")
+        print(f"<> using default port: {port}")
+
+    server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    server.bind(("0.0.0.0", port))
+    print("<> bound and ready to receive messages")
+
+    mapping = Mapping()
+    while True:
+        ok_read, ok_write, errs = select.select([server], [], [])
+        if ok_read:
+            s: socket.socket = ok_read[0]
+            msg_bytes, our_addr = s.recvfrom(100)
+            msg = msg_bytes.decode('utf-8')
+
+            print(f"<> [{our_addr}]: {msg}")
+
+            cmd, payload = msg.split("#")
+            if cmd == "JOIN":
+                handle_join(s, mapping, our_addr, msg)
+            elif cmd == "EXIT":
+                handle_exit(mapping, msg)

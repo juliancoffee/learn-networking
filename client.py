@@ -41,7 +41,8 @@ while True:
             raise e
 
 def fetch_peer_addr() -> tuple[str, int]:
-    s.sendto(f"{our_id}@{peer_id}".encode('utf-8'), (remote_host, remote_port))
+    req = f"JOIN#{our_id}@{peer_id}"
+    s.sendto(req.encode('utf-8'), (remote_host, remote_port))
 
     print("<> send a message, fetching the response")
     server_msg, server_addr = s.recvfrom(100)
@@ -55,6 +56,11 @@ def fetch_peer_addr() -> tuple[str, int]:
     peer_port = int(peer_port_string)
     print(f"<> server says our peer is {peer_host}:{peer_port}")
     return (peer_host, peer_port)
+
+def disconect():
+    req = f"EXIT#{our_id}@{peer_id}"
+    s.sendto(req.encode('utf-8'), (remote_host, remote_port))
+    print("<> requested exit")
 
 def hi_peer(peer_host, peer_port, dbg: bool = True):
     s.sendto(f"hi peer on {peer_host}".encode("utf-8"), (peer_host, peer_port))
@@ -99,3 +105,4 @@ for i in range(50):
 print(f"{miss=}")
 print(f"{got=}")
 print(f"total time: {(time.time_ns() - now) / (10 ** 6)} miliseconds")
+disconnect()
