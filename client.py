@@ -71,7 +71,7 @@ def check_peer(s):
 print(f"<> good, ready to connect to {remote_host}:{remote_port}")
 peer_host, peer_port = fetch_peer_addr()
 
-for _ in range(10):
+for _ in range(50):
     # say hello
     hi_peer(peer_host, peer_port)
     # anybody there?
