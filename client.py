@@ -1,4 +1,5 @@
 import socket
+import select
 import sys
 import tomllib
 
@@ -62,12 +63,18 @@ def hi_peer(peer_host, peer_port):
     s.sendto(f"hi peer on {peer_host}".encode("utf-8"), (peer_host, peer_port))
     print(f"<> said hello to peer")
 
-def check_peer():
+def check_peer(s):
     msg, addr = s.recvfrom(100)
+    print(f"<> got message from our peer on {addr}")
     print(f"<> {msg!r} our peer said")
 
 print(f"<> good, ready to connect to {remote_host}:{remote_port}")
 peer_host, peer_port = fetch_peer_addr()
-hi_peer(peer_host, peer_port)
-# anybody there?
-check_peer()
+
+for _ in range(10):
+    # say hello
+    hi_peer(peer_host, peer_port)
+    # anybody there?
+    ok_read, ok_write, errs = select.select([s], [], [], 1)
+    if ok_read:
+        check_peer(ok_read[0])
