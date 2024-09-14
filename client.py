@@ -74,17 +74,21 @@ print(f"<> good, ready to connect to {remote_host}:{remote_port}")
 peer_host, peer_port = fetch_peer_addr()
 
 # say hello
-print("<> spamming our peer\n")
+print("<> spamming our peer")
 for i in range(20):
     time.sleep(0.1)
     hi_peer(peer_host, peer_port, dbg=False)
+print("<> done spamming")
 
 miss = 0
 got = 0
 
 now = time.time_ns()
 for i in range(50):
-    print(f"\x1b[1A<{i}th iteration>    ")
+    if i == 0:
+        print(f"<{i}th iteration>    ")
+    else:
+        print(f"\x1b[1A<{i}th iteration>    ")
     # repeat
     hi_peer(peer_host, peer_port, dbg=False)
     # anybody there?
