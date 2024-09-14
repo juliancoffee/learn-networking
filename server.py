@@ -86,12 +86,16 @@ class Mapping:
     def register(
             self,
             ids: tuple[str, str],
-            addrs: tuple[Addr, Optional[Addr]]
+            our_addr: Addr,
     ) -> Entry:
         entry = self.find_entry(ids)
         if entry is None:
-            entry = Entry(ids, addrs)
+            entry = Entry(ids, (our_addr, None))
             self.mapping.append(entry)
+        else:
+            id1, id2 = ids
+            entry.set_addr_of(id1, our_addr)
+
         return entry
 
     def find_entry(self, ids: tuple[str, str]) -> Optional[Entry]:
@@ -122,12 +126,18 @@ while True:
         our_id, their_id = msg.split("@")
         id_pair = our_id, their_id
 
-        entry = mapping.find_entry(id_pair)
-        if entry is None:
+        if mapping.find_entry(id_pair) is None:
             print(f"<> registered new mapping: {our_id} @ {their_id}")
-            mapping.register(id_pair, (our_addr, None))
+            mapping.register(id_pair, our_addr)
         else:
-            assert (addr_pair := entry.get_full_pair(id_pair)) is not None
+            entry = mapping.register(id_pair, our_addr)
+
+            addr_pair = entry.get_full_pair(id_pair)
+            if addr_pair is None:
+                print("<> another hit to {our_id} @ {their_id}")
+                print("<> but the mapping is incomplete")
+                continue
+
             our_addr, their_addr = addr_pair
             s.sendto(
                 addrs_to_string(our_addr, their_addr).encode('utf-8'),
