@@ -48,7 +48,6 @@ def fetch_peer_addr() -> tuple[str, int]:
 
     print("<> send a message, fetching the response")
     server_msg, server_addr = s.recvfrom(100)
-    print(f"{server_msg=}")
     our_addr_string, peer_addr_string = server_msg.decode("utf-8").split(";")
 
     our_host, our_port_string = our_addr_string.split(":")
@@ -65,16 +64,17 @@ def hi_peer(peer_host, peer_port, dbg: bool = True):
     if dbg:
         print(f"<> said hello to peer")
 
-def check_peer(s):
+def check_peer(s, dbg: bool=True):
     msg, addr = s.recvfrom(100)
-    print(f"<> got message from our peer on {addr}")
-    print(f"<> {msg!r} our peer said")
+    if dbg:
+        print(f"<> got message from our peer on {addr}")
+        print(f"<> {msg!r} our peer said")
 
 print(f"<> good, ready to connect to {remote_host}:{remote_port}")
 peer_host, peer_port = fetch_peer_addr()
 
 # say hello
-print("<> spamming our peer")
+print("<> spamming our peer\n")
 for i in range(20):
     time.sleep(0.1)
     hi_peer(peer_host, peer_port, dbg=False)
@@ -84,14 +84,14 @@ got = 0
 
 now = time.time_ns()
 for i in range(50):
-    print(f"<{i}th iteration>")
+    print(f"\x1b[1A<{i}th iteration>    ")
     # repeat
     hi_peer(peer_host, peer_port, dbg=False)
     # anybody there?
     ok_read, ok_write, errs = select.select([s], [], [], 0.15)
     if ok_read:
         got += 1
-        check_peer(ok_read[0])
+        check_peer(ok_read[0], dbg=False)
     else:
         miss += 1
 
