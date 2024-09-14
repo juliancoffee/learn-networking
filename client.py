@@ -71,8 +71,11 @@ def check_peer(s):
 print(f"<> good, ready to connect to {remote_host}:{remote_port}")
 peer_host, peer_port = fetch_peer_addr()
 
-for _ in range(50):
-    # say hello
+# say hello
+hi_peer(peer_host, peer_port)
+for i in range(50):
+    print(f"<{i}>", end='')
+    # repeat
     hi_peer(peer_host, peer_port)
     # anybody there?
     ok_read, ok_write, errs = select.select([s], [], [], 1)
