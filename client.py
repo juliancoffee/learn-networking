@@ -81,6 +81,8 @@ for i in range(20):
 
 miss = 0
 got = 0
+
+now = time.time_ns()
 for i in range(50):
     print(f"<{i}>", end='')
     # repeat
@@ -95,3 +97,4 @@ for i in range(50):
 
 print(f"{miss=}")
 print(f"{got=}")
+print(f"total time: {(time.time_ns() - now) * (10 ** 6)} miliseconds")
