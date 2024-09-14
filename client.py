@@ -57,7 +57,7 @@ def fetch_peer_addr() -> tuple[str, int]:
     print(f"<> server says our peer is {peer_host}:{peer_port}")
     return (peer_host, peer_port)
 
-def disconect():
+def disconnect():
     req = f"EXIT#{our_id}@{peer_id}"
     s.sendto(req.encode('utf-8'), (remote_host, remote_port))
     print("<> requested exit")

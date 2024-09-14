@@ -167,14 +167,15 @@ def loop() -> Never:
         if ok_read:
             s: socket.socket = ok_read[0]
             msg_bytes, our_addr = s.recvfrom(100)
-            msg = msg_bytes.decode('utf-8')
+            payload = msg_bytes.decode('utf-8')
 
-            print(f"<> [{our_addr}]: {msg}")
+            print(f"<> [{our_addr}]: {payload}")
 
-            cmd, payload = msg.split("#")
+            cmd, msg = payload.split("#")
             if cmd == "JOIN":
                 handle_join(s, mapping, our_addr, msg)
             elif cmd == "EXIT":
                 handle_exit(mapping, msg)
 
-loop()
+if __name__ == "__main__":
+    loop()
