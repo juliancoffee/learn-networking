@@ -55,27 +55,15 @@ def check_peer(s, dbg: bool=True):
         print(f"<> {msg!r} our peer said")
 
 
-def main() -> None:
-    try:
-        with open("config.toml", "rb") as f:
-            data = tomllib.load(f)
-
-        remote_host = data["remote_host"]
-        remote_port = int(data["remote_port"])
-        our_id = data["our_id"]
-        peer_id = data["peer_id"]
-    except Exception as e:
-        print("couldn't read the config.toml")
-        print(f"{e=}")
-        sys.exit(1)
-
-    try:
-        port = int(sys.argv[1])
-        print(f"<> using src port: {port}")
-    except (ValueError, IndexError):
-        port = 9_990
-        print("<err> couldn't get the src port from arguments")
-        print(f"<> using default src port: {port}")
+def prepare_socket(port: Optional[int] = None) -> socket.socket:
+    if port is None:
+        try:
+            port = int(sys.argv[1])
+            print(f"<> using src port: {port}")
+        except (ValueError, IndexError):
+            port = 9_990
+            print("<err> couldn't get the src port from arguments")
+            print(f"<> using default src port: {port}")
 
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     while True:
@@ -90,6 +78,23 @@ def main() -> None:
                 port += 1
             else:
                 raise e
+
+
+def main() -> None:
+    try:
+        with open("config.toml", "rb") as f:
+            data = tomllib.load(f)
+
+        remote_host = data["remote_host"]
+        remote_port = int(data["remote_port"])
+        our_id = data["our_id"]
+        peer_id = data["peer_id"]
+    except Exception as e:
+        print("couldn't read the config.toml")
+        print(f"{e=}")
+        sys.exit(1)
+
+    s = prepare_socket()
 
     print(f"<> good, ready to connect to {remote_host}:{remote_port}")
     peer_host, peer_port = fetch_peer_addr(
