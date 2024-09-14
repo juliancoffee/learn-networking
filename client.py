@@ -45,7 +45,12 @@ def fetch_peer_addr() -> tuple[str, int]:
     s.sendto(req.encode('utf-8'), (remote_host, remote_port))
 
     print("<> send a message, fetching the response")
-    server_msg, server_addr = s.recvfrom(100)
+
+    while True:
+        msg, sender_addr = s.recvfrom(100)
+        if sender_addr == (remote_host, remote_port):
+            server_msg = msg
+            break
     our_addr_string, peer_addr_string = server_msg.decode("utf-8").split(";")
 
     our_host, our_port_string = our_addr_string.split(":")
