@@ -77,11 +77,11 @@ print(f"<> good, ready to connect to {remote_host}:{remote_port}")
 peer_host, peer_port = fetch_peer_addr()
 
 # say hello
-print("<> spamming our peer")
-for i in range(20):
-    time.sleep(0.1)
-    hi_peer(peer_host, peer_port, dbg=False)
-print("<> done spamming")
+#print("<> spamming our peer")
+#for i in range(20):
+    #time.sleep(0.1)
+    #hi_peer(peer_host, peer_port, dbg=False)
+#print("<> done spamming")
 
 miss = 0
 got = 0
