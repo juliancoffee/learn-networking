@@ -4,17 +4,14 @@ import select
 import sys
 import tomllib
 
-def remote() -> tuple[str, int]:
+try:
     with open("config.toml", "rb") as f:
         data = tomllib.load(f)
 
     remote_host = data["remote_host"]
     remote_port = int(data["remote_port"])
-
-    return remote_host, remote_port
-
-try:
-    remote_host, remote_port = remote()
+    our_id = data["our_id"]
+    peer_id = data["peer_id"]
 except Exception as e:
     print("couldn't read the config.toml")
     print(f"{e=}")
@@ -44,7 +41,7 @@ while True:
             raise e
 
 def fetch_peer_addr() -> tuple[str, int]:
-    s.sendto(b"hi server", (remote_host, remote_port))
+    s.sendto(f"{our_id}@{peer_id}", (remote_host, remote_port))
 
     print("<> send a message, fetching the response")
     server_msg, server_addr = s.recvfrom(100)

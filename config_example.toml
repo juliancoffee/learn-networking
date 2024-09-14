@@ -1,2 +1,6 @@
 remote_host = "127.0.0.1"
 remote_port = 11_111
+
+# should be any string, as long as it doesn't contain @ symbol
+our_id = "id' OR '1' = '1'; DROP TABLE ids"
+peer_id = "id' OR '2' = '2'; DROP table ids"
