@@ -59,9 +59,10 @@ def fetch_peer_addr() -> tuple[str, int]:
     print(f"<> server says our peer is {peer_host}:{peer_port}")
     return (peer_host, peer_port)
 
-def hi_peer(peer_host, peer_port):
+def hi_peer(peer_host, peer_port, dbg: bool = True):
     s.sendto(f"hi peer on {peer_host}".encode("utf-8"), (peer_host, peer_port))
-    print(f"<> said hello to peer")
+    if dbg:
+        print(f"<> said hello to peer")
 
 def check_peer(s):
     msg, addr = s.recvfrom(100)
@@ -72,7 +73,11 @@ print(f"<> good, ready to connect to {remote_host}:{remote_port}")
 peer_host, peer_port = fetch_peer_addr()
 
 # say hello
-hi_peer(peer_host, peer_port)
+print("<> spamming our peer")
+for i in range(20):
+    time.sleep(0.01)
+    hi_peer(peer_host, peer_port, dbg=false)
+
 for i in range(50):
     print(f"<{i}>", end='')
     # repeat
