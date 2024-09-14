@@ -41,7 +41,7 @@ while True:
             raise e
 
 def fetch_peer_addr() -> tuple[str, int]:
-    s.sendto(f"{our_id}@{peer_id}", (remote_host, remote_port))
+    s.sendto(f"{our_id}@{peer_id}".encode('utf-8'), (remote_host, remote_port))
 
     print("<> send a message, fetching the response")
     server_msg, server_addr = s.recvfrom(100)

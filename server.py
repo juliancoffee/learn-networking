@@ -101,9 +101,12 @@ class Mapping:
         else:
             return None
 
-def addr_to_string(addr: Addr) -> str:
-    host, port = addr
-    return ":".join((host, str(port)))
+def addrs_to_string(addr_a: Addr, addr_b: Addr) -> str:
+    def addr_to_string(addr: Addr) -> str:
+        host, port = addr
+        return ":".join((host, str(port)))
+
+    return ";".join((addr_to_string(addr_a), addr_to_string(addr_b)))
 
 
 mapping = Mapping()
@@ -126,6 +129,12 @@ while True:
         else:
             assert (addr_pair := entry.get_full_pair(id_pair)) is not None
             our_addr, their_addr = addr_pair
-            s.sendto(addr_to_string(their_addr).encode('utf-8'), our_addr)
-            s.sendto(addr_to_string(our_addr).encode('utf-8'), their_addr)
+            s.sendto(
+                addrs_to_string(our_addr, their_addr).encode('utf-8'),
+                our_addr
+            )
+            s.sendto(
+                addrs_to_string(their_addr, our_addr).encode('utf-8'),
+                their_addr
+            )
             print(f"<> send their addresses to both: {our_id} @ {their_id}")
