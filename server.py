@@ -126,7 +126,7 @@ def handle_join(s: socket.socket, mapping: Mapping, our_addr: Addr, msg: str):
 
         addr_pair = entry.get_full_pair(id_pair)
         if addr_pair is None:
-            print("<> another hit to {our_id} @ {their_id}")
+            print(f"<> another hit to {our_id} @ {their_id}")
             print("<> but the mapping is incomplete")
             return
 
