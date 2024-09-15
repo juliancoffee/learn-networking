@@ -98,13 +98,6 @@ def main_loop(
         remote_port,
     )
 
-    # say hello
-    #print("<> spamming our peer")
-    #for i in range(20):
-        #time.sleep(0.1)
-        #hi_peer(peer_host, peer_port, dbg=False)
-    #print("<> done spamming")
-
     miss = 0
     got = 0
 
