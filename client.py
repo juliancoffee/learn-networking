@@ -97,6 +97,7 @@ def main_loop(
         remote_host,
         remote_port,
     )
+    print("<> starting the main loop")
 
     miss = 0
     got = 0
