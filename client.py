@@ -83,23 +83,13 @@ def prepare_socket(port: Optional[int] = None) -> socket.socket:
     return s
 
 
-def main() -> None:
-    try:
-        with open("config.toml", "rb") as f:
-            data = tomllib.load(f)
-
-        remote_host = data["remote_host"]
-        remote_port = int(data["remote_port"])
-        our_id = data["our_id"]
-        peer_id = data["peer_id"]
-    except Exception as e:
-        print("couldn't read the config.toml")
-        print(f"{e=}")
-        sys.exit(1)
-
-    s = prepare_socket()
-
-    print(f"<> good, ready to connect to {remote_host}:{remote_port}")
+def main_loop(
+    s: socket.socket,
+    our_id: str,
+    peer_id: str,
+    remote_host: str,
+    remote_port: int,
+) -> None:
     peer_host, peer_port = fetch_peer_addr(
         s,
         our_id,
@@ -138,13 +128,49 @@ def main() -> None:
     print(f"{got=}")
     print(f"total time: {(time.time_ns() - now) / (10 ** 6)} miliseconds")
 
-    disconnect(
-        s,
-        our_id,
-        peer_id,
-        remote_host,
-        remote_port,
-    )
+
+def main() -> None:
+    try:
+        with open("config.toml", "rb") as f:
+            data = tomllib.load(f)
+
+        remote_host = data["remote_host"]
+        remote_port = int(data["remote_port"])
+
+        our_id = data["our_id"]
+        if len(sys.argv) >= 3:
+            our_id = sys.argv[2]
+            print(f"<> rewrite our_id with {our_id}")
+
+        peer_id = data["peer_id"]
+        if len(sys.argv) >= 4:
+            peer_id = sys.argv[3]
+            print(f"<> rewrite peer_id with {peer_id}")
+
+    except Exception as e:
+        print("couldn't read the config.toml")
+        print(f"{e=}")
+        sys.exit(1)
+
+    s = prepare_socket()
+    print(f"<> good, ready to connect to {remote_host}:{remote_port}")
+
+    try:
+        main_loop(
+            s,
+            our_id,
+            peer_id,
+            remote_host,
+            remote_port,
+        )
+    finally:
+        disconnect(
+            s,
+            our_id,
+            peer_id,
+            remote_host,
+            remote_port,
+        )
 
 if __name__ == "__main__":
     main()
