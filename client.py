@@ -129,8 +129,8 @@ class Stats:
         self._got += 1
 
     def print_results(self):
-        print(f"{self.miss=}")
-        print(f"{self.got=}")
+        print(f"{self._miss=}")
+        print(f"{self._got=}")
         ms_passed = (time.time_ns() - self.start) / (10 ** 6)
         print(f"total time: {ms_passed} miliseconds")
 
@@ -147,7 +147,7 @@ def main_loop(
 
     stats = Stats()
     error_clock = 0
-    for i in itertools.count():
+    for i in range(100):
         same_line_print(i, f"<{i}th iteration>")
 
         # if missed to many requests, change the port
