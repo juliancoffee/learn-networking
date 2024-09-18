@@ -260,10 +260,10 @@ def connection_loop(
     else:
         raise RuntimeError("failed to establish connection")
 
-def next_pick(turn: int) -> str:
+def next_pick(turn: int) -> tuple[Optional[str], str]:
     pick = random.choice(["paper", "rock", "scissors"])
-    print("<> on turn {turn} we picked: {pick}")
-    return pick
+    print(f"<> on turn {turn} we picked: {pick}")
+    return None, pick
 
 def play_loop(
     stats: Stats,
@@ -271,7 +271,7 @@ def play_loop(
     peer: Addr,
 ) -> None:
     turn = 0
-    pick = next_pick(turn)
+    peer_pick, pick = next_pick(turn)
 
     while turn < 10:
         our_msg = f"go:{turn}:{pick}".encode('utf-8')
@@ -289,16 +289,18 @@ def play_loop(
                 stats.other()
                 print(f"leftover ping")
                 continue
-            elif data[0] == "ack":
-                if int(data[1]) == turn:
-                    stats.got()
-                    turn += 1
-                    continue
-            elif data[0] == "go":
-                if int(data[1]) == turn:
-                    stats.got()
-                    s.sendto(f"ack:{turn}".encode('utf-8'), peer)
-                    continue
+            elif data[0] == "ack" and int(data[1]) == turn:
+                stats.got()
+                turn += 1
+                peer_pick, pick = next_pick(turn)
+                continue
+            elif data[0] == "go" and int(data[1]) == turn:
+                stats.got()
+                if peer_pick is not None:
+                    peer_pick = data[2]
+                    print(f"on turn {turn} opponent picked {peer_pick}")
+                s.sendto(f"ack:{turn}".encode('utf-8'), peer)
+                continue
             else:
                 stats.other()
                 print(f"unexpected msg: {msg!r}")
