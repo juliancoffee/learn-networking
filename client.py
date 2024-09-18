@@ -1,5 +1,6 @@
 from typing import Optional
 
+import copy
 import time
 import socket
 import select
@@ -117,25 +118,50 @@ def prepare_socket(port: Optional[int] = None) -> socket.socket:
 
 class Stats:
     def __init__(self):
-        self._miss = 0
-        self._got = 0
-        self._other = 0
+        self.miss_counter = 0
+        self.got_counter = 0
+        self.other_counter = 0
 
+        self.last = None
         self.start = time.time_ns()
+        self.ns = 0.0
 
     def miss(self):
-        self._miss += 1
+        self.miss_counter += 1
 
     def got(self):
-        self._got += 1
+        self.got_counter += 1
 
     def other(self):
-        self._other += 1
+        self.other_counter += 1
+
+    def print_step(self):
+        if self.last is None:
+            miss = self.miss_counter
+            got = self.got_counter
+            other = self.other_counter
+            ns_passed = time.time_ns() - self.start
+        else:
+            miss = self.miss_counter - self.last.miss_counter
+            got = self.got_counter - self.last.got_counter
+            other = self.other_counter - self.last.other_counter
+            ns_passed = time.time_ns() - self.last.ns
+
+        print(f"miss/got/other: {miss}/{got}/{other}")
+        ms_passed = ns_passed / (10 ** 6)
+        print(f"time: {ms_passed} milliseconds")
+
+        self.last = copy.deepcopy(self)
+        self.last.ns = time.time_ns()
 
     def print_results(self):
-        print(f"miss/got/other = {self._miss}/{self._got}/{self._other}")
+        print("Total stats")
+        print("===========")
+        print(f"miss:\n\t{self.miss_counter}")
+        print(f"got:\n\t{self.got_counter}")
+        print(f"other:\n\t{self.other_counter}")
         ms_passed = (time.time_ns() - self.start) / (10 ** 6)
-        print(f"total time: {ms_passed} miliseconds")
+        print(f"time:\n\t{ms_passed} miliseconds")
 
 def main_loop(
     s: socket.socket,
@@ -174,16 +200,16 @@ def main_loop(
                 print(f"new peer: {peer}")
                 stats.other()
             else:
-                print(f"{msg}:{addr}")
-                self.other()
+                print(f"{msg!r}:{addr}")
+                stats.other()
         else:
             error_clock += 1
             stats.miss()
 
 
-        if (ok_clock % 10) == 0:
-            stats.print_results()
-    stats.print_results
+        if (i % 10) == 0 and i != 0:
+            stats.print_step()
+    stats.print_results()
 
 def main() -> None:
     try:
