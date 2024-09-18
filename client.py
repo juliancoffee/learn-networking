@@ -276,6 +276,7 @@ def play_loop(
     msg_cache: set[bytes] = set()
 
     while turn < 10:
+        time.sleep(0.01)
         our_msg = f"go:{turn}:{pick}".encode('utf-8')
         s.sendto(our_msg, peer)
 
