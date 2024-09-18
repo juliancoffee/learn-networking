@@ -260,10 +260,10 @@ def connection_loop(
     else:
         raise RuntimeError("failed to establish connection")
 
-def next_pick(turn: int) -> tuple[Optional[str], str]:
+def next_pick(turn: int) -> str:
     pick = random.choice(["paper", "rock", "scissors"])
-    print(f"<> on turn {turn} we picked: {pick}")
-    return None, pick
+    print(f"<*> on turn {turn} we picked: {pick}")
+    return pick
 
 def play_loop(
     stats: Stats,
@@ -271,7 +271,9 @@ def play_loop(
     peer: Addr,
 ) -> None:
     turn = 0
-    peer_pick, pick = next_pick(turn)
+    pick = next_pick(turn)
+
+    peer_picks: dict[int, str] = {}
 
     msg_cache: set[bytes] = set()
 
@@ -294,14 +296,17 @@ def play_loop(
             elif data[0] == "ack" and int(data[1]) == turn:
                 stats.got()
                 turn += 1
-                peer_pick, pick = next_pick(turn)
+                pick = next_pick(turn)
                 continue
             elif data[0] == "go":
                 peer_turn = int(data[1])
-                stats.got()
-                if peer_pick is None:
+                if peer_picks.get(peer_turn) is None:
+                    stats.got()
                     peer_pick = data[2]
-                    print(f"on turn {peer_turn} opponent picked {peer_pick}")
+                    peer_picks[peer_turn] = peer_pick
+                    print(f"<_> on turn {peer_turn} opponent picked {peer_pick}")
+                else:
+                    stats.other()
                 s.sendto(f"ack:{peer_turn}".encode('utf-8'), peer)
                 continue
             else:
