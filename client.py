@@ -8,7 +8,21 @@ import sys
 import tomllib
 import itertools
 
+# utils
 Addr = tuple[str, int]
+def timeout_recv(
+    s: socket.socket,
+    timeout: Optional[float] = None
+) -> Optional[tuple[bytes, Addr]]:
+    ok_read, _, _ = select.select([s], [], [], timeout)
+    if ok_read:
+        s = ok_read[0]
+        msg, addr = s.recvfrom(100)
+        return msg, addr
+    else:
+        return None
+# end of utils
+
 def make_peer_req(
     s: socket.socket,
     our_id: str,
@@ -46,9 +60,8 @@ def first_peer_fetch(
     peer_id: str,
     remote: Addr,
 ) -> tuple[str, int]:
-    # loop to get the response (limit by 10)
-    server_msg = None
 
+    server_msg = None
     for i in itertools.count():
         # declare that we exist
         make_peer_req(s, our_id, peer_id, remote)
@@ -56,10 +69,8 @@ def first_peer_fetch(
         same_line_print(i, f"<> requesting the connection {numbering}")
 
         # check the mailbox
-        ok_read, _, _ = select.select([s], [], [], 2)
-        if ok_read:
-            s = ok_read[0]
-            msg, sender_addr = s.recvfrom(100)
+        if (res := timeout_recv(s, 2)) is not None:
+            msg, sender_addr = res
             # if the message from server, we got it
             if sender_addr == remote:
                 server_msg = msg
@@ -67,6 +78,7 @@ def first_peer_fetch(
 
     if server_msg is None:
         raise RuntimeError("couldn't get the server message")
+
     # parse server message
     our, peer = parse_server_msg(server_msg)
 
@@ -118,22 +130,49 @@ def prepare_socket(port: Optional[int] = None) -> socket.socket:
 
 class Stats:
     def __init__(self):
+        # counters
         self.miss_counter = 0
         self.got_counter = 0
         self.other_counter = 0
 
-        self.last = None
+        # failure counters
+        self.err_clock = 0
+        self.ok_clock = 0
+
+        # start time
         self.start = time.time_ns()
+
+        # used for periodics
+        self.last = None
         self.ns = 0.0
 
     def miss(self):
         self.miss_counter += 1
 
+        self.err_clock += 1
+
     def got(self):
         self.got_counter += 1
 
+        self.ok_clock += 1
+        self.err_clock = 0
+
     def other(self):
         self.other_counter += 1
+
+    def failed_enough(self, err_limit: int) -> bool:
+        if self.err_clock >= err_limit:
+            self.err_clock = 0
+            return True
+        else:
+            return False
+
+    def good_enough(self, ok_limit: int) -> bool:
+        if self.ok_clock >= ok_limit:
+            self.ok_clock = 0
+            return True
+        else:
+            return False
 
     def print_step(self):
         if self.last is None:
@@ -163,37 +202,43 @@ class Stats:
         ms_passed = (time.time_ns() - self.start) / (10 ** 6)
         print(f"time:\n\t{ms_passed} miliseconds")
 
-def main_loop(
+def reconnect(
     s: socket.socket,
     our_id: str,
     peer_id: str,
-    remote,
-) -> None:
+    remote: Addr
+) -> Addr:
+    _, port = s.getsockname()
+    s = prepare_socket(port + 1)
+    peer = first_peer_fetch(s, our_id, peer_id, remote)
+    return peer
+
+def connection_loop(
+    stats: Stats,
+    s: socket.socket,
+    our_id: str,
+    peer_id: str,
+    remote: Addr,
+) -> Addr:
     print("<> initiating connection")
     peer = first_peer_fetch(s, our_id, peer_id, remote)
-    print("<> starting the main loop")
 
-
-    stats = Stats()
-    error_clock = 0
-    ok_clock = 0
     for i in range(100):
         # if missed to many requests, change the port
-        if error_clock == 10:
-            _, port = s.getsockname()
-            s = prepare_socket(port + 1)
-            peer = first_peer_fetch(s, our_id, peer_id, remote)
-            error_clock = 0
+        if stats.failed_enough(10):
+            peer = reconnect(s, our_id, peer_id, remote)
 
+        if stats.good_enough(10):
+            print("<> connection is stable")
+            return peer
 
+        # ping
         s.sendto(b"ping", peer)
-        ok_read, ok_write, errs = select.select([s], [], [], 0.15)
-        if ok_read:
-            s = ok_read[0]
-            msg, addr = s.recvfrom(100)
+
+        # check the result
+        if (res := timeout_recv(s, 0.15)) is not None:
+            msg, addr = res
             if addr == peer:
-                error_clock = 0
-                ok_clock += 1
                 stats.got()
             elif addr == remote:
                 _, peer = parse_server_msg(msg)
@@ -203,12 +248,24 @@ def main_loop(
                 print(f"{msg!r}:{addr}")
                 stats.other()
         else:
-            error_clock += 1
             stats.miss()
 
 
         if (i % 10) == 0 and i != 0:
             stats.print_step()
+    else:
+        raise RuntimeError("failed to establish connection")
+
+
+def main_loop(
+    s: socket.socket,
+    our_id: str,
+    peer_id: str,
+    remote: Addr,
+) -> None:
+    stats = Stats()
+    # establish a connection
+    connection_loop(stats, s, our_id, peer_id, remote)
     stats.print_results()
 
 def main() -> None:
