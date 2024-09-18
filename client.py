@@ -148,8 +148,6 @@ def main_loop(
     stats = Stats()
     error_clock = 0
     for i in range(100):
-        same_line_print(i, f"<{i}th iteration>")
-
         # if missed to many requests, change the port
         if error_clock == 10:
             _, port = s.getsockname()
