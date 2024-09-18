@@ -260,6 +260,52 @@ def connection_loop(
     else:
         raise RuntimeError("failed to establish connection")
 
+def next_pick(turn: int) -> str:
+    pick = random.choice(["paper", "rock", "scissors"])
+    print("<> on turn {turn} we picked: {pick}")
+    return pick
+
+def play_loop(
+    stats: Stats,
+    s: socket.socket,
+    peer: Addr,
+) -> None:
+    turn = 0
+    pick = next_pick(turn)
+
+    while turn < 10:
+        our_msg = f"go:{turn}:{pick}".encode('utf-8')
+        s.sendto(our_msg, peer)
+
+        if (res := timeout_recv(s, 0.15)) is not None:
+            msg, addr = res
+            if addr != peer:
+                stats.other()
+                print(f"unexpected sender: {addr}, msg: {msg!r}")
+                continue
+
+            data = msg.decode('utf-8').split(":")
+            if data[0] == "ping":
+                stats.other()
+                print(f"leftover ping")
+                continue
+            elif data[0] == "ack":
+                if int(data[1]) == turn:
+                    stats.got()
+                    turn += 1
+                    continue
+            elif data[0] == "go":
+                if int(data[1]) == turn:
+                    stats.got()
+                    s.sendto(f"ack:{turn}".encode('utf-8'), peer)
+                    continue
+            else:
+                stats.other()
+                print(f"unexpected msg: {msg!r}")
+                continue
+        else:
+            stats.miss()
+            s.sendto(our_msg, peer)
 
 def main_loop(
     s: socket.socket,
@@ -270,7 +316,8 @@ def main_loop(
     stats = Stats()
     # establish a connection
     try:
-        connection_loop(stats, s, our_id, peer_id, remote)
+        peer = connection_loop(stats, s, our_id, peer_id, remote)
+        play_loop(stats, s, peer)
     finally:
         stats.print_results()
 
