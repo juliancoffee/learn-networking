@@ -5,34 +5,76 @@ import socket
 import select
 import sys
 import tomllib
+import itertools
 
-def fetch_peer_addr(
+Addr = tuple[str, int]
+def make_peer_req(
     s: socket.socket,
     our_id: str,
     peer_id: str,
-    remote_host: str,
-    remote_port: int,
-) -> tuple[str, int]:
+    remote: Addr,
+) -> None:
     req = f"JOIN#{our_id}@{peer_id}"
-    s.sendto(req.encode('utf-8'), (remote_host, remote_port))
+    s.sendto(req.encode('utf-8'), remote)
 
-    print("<> send a message, fetching the response")
+def parse_addr(addr_string: str) -> Addr:
+    host, port_string = addr_string.split(":")
+    port = int(port_string)
 
-    while True:
-        msg, sender_addr = s.recvfrom(100)
-        if sender_addr == (remote_host, remote_port):
-            server_msg = msg
-            break
-    our_addr_string, peer_addr_string = server_msg.decode("utf-8").split(";")
+    return host, port
 
-    our_host, our_port_string = our_addr_string.split(":")
-    our_port = int(our_port_string)
-    print(f"<> server says we are {our_host}:{our_port}")
+def parse_server_msg(msg: bytes) -> tuple[Addr, Addr]:
+    our_addr_string, peer_addr_string = msg.decode("utf-8").split(";")
+    our = parse_addr(our_addr_string)
+    peer = parse_addr(peer_addr_string)
 
-    peer_host, peer_port_string = peer_addr_string.split(":")
-    peer_port = int(peer_port_string)
-    print(f"<> server says our peer is {peer_host}:{peer_port}")
-    return (peer_host, peer_port)
+    return our, peer
+
+def same_line_print(i: int, msg: str, *args, **kwargs) -> None:
+    # padding in case msg len changes
+    padding = " " * 10
+    if i == 0:
+        print(f"{msg}" + padding, *args, **kwargs)
+    else:
+        to_prev_line = "\x1b[1A"
+        print(f"{to_prev_line}{msg}" + padding, *args, **kwargs)
+
+def first_peer_fetch(
+    s: socket.socket,
+    our_id: str,
+    peer_id: str,
+    remote: Addr,
+) -> tuple[str, int]:
+    # loop to get the response (limit by 10)
+    server_msg = None
+
+    for i in itertools.count():
+        # declare that we exist
+        make_peer_req(s, our_id, peer_id, remote)
+        numbering = '' if i == 0 else f'#{i + 1}'
+        same_line_print(i, f"<> requesting the connection {numbering}")
+
+        # check the mailbox
+        ok_read, _, _ = select.select([s], [], [], 2)
+        if ok_read:
+            s = ok_read[0]
+            msg, sender_addr = s.recvfrom(100)
+            # if the message from server, we got it
+            if sender_addr == remote:
+                server_msg = msg
+                break
+
+    if server_msg is None:
+        raise RuntimeError("couldn't get the server message")
+    # parse server message
+    our, peer = parse_server_msg(server_msg)
+
+    # print response
+    print(f"<> server says we are {our[0]}:{our[1]}")
+    print(f"<> server says our peer is {peer[0]}:{peer[1]}")
+
+    # finally return response
+    return peer
 
 def disconnect(
     s: socket.socket,
@@ -45,8 +87,8 @@ def disconnect(
     s.sendto(req.encode('utf-8'), (remote_host, remote_port))
     print("<> requested exit")
 
-def hi_peer(s, peer_host, peer_port, dbg: bool = True):
-    s.sendto(f"hi peer on {peer_host}".encode("utf-8"), (peer_host, peer_port))
+def hi_peer(s, peer: Addr, dbg: bool = True):
+    s.sendto(f"hi peer on {peer[0]}".encode("utf-8"), peer)
     if dbg:
         print(f"<> said hello to peer")
 
@@ -87,16 +129,9 @@ def main_loop(
     s: socket.socket,
     our_id: str,
     peer_id: str,
-    remote_host: str,
-    remote_port: int,
+    remote,
 ) -> None:
-    peer_host, peer_port = fetch_peer_addr(
-        s,
-        our_id,
-        peer_id,
-        remote_host,
-        remote_port,
-    )
+    peer = first_peer_fetch(s, our_id, peer_id, remote)
     print("<> starting the main loop")
 
     miss = 0
@@ -109,7 +144,7 @@ def main_loop(
         else:
             print(f"\x1b[1A<{i}th iteration>    ")
         # repeat
-        hi_peer(s, peer_host, peer_port, dbg=False)
+        hi_peer(s, peer, dbg=False)
         # anybody there?
         ok_read, ok_write, errs = select.select([s], [], [], 0.15)
         if ok_read:
@@ -130,6 +165,7 @@ def main() -> None:
 
         remote_host = data["remote_host"]
         remote_port = int(data["remote_port"])
+        remote = (remote_host, remote_port)
 
         our_id = data["our_id"]
         if len(sys.argv) >= 3:
@@ -154,8 +190,7 @@ def main() -> None:
             s,
             our_id,
             peer_id,
-            remote_host,
-            remote_port,
+            remote,
         )
     finally:
         disconnect(
