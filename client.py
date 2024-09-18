@@ -299,7 +299,7 @@ def play_loop(
                 continue
             elif data[0] == "go" and int(data[1]) == turn:
                 stats.got()
-                if peer_pick is not None:
+                if peer_pick is None:
                     peer_pick = data[2]
                     print(f"on turn {turn} opponent picked {peer_pick}")
                 s.sendto(f"ack:{turn}".encode('utf-8'), peer)
