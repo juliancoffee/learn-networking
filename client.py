@@ -269,8 +269,10 @@ def main_loop(
 ) -> None:
     stats = Stats()
     # establish a connection
-    connection_loop(stats, s, our_id, peer_id, remote)
-    stats.print_results()
+    try:
+        connection_loop(stats, s, our_id, peer_id, remote)
+    finally:
+        stats.print_results()
 
 def main() -> None:
     try:
