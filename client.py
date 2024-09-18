@@ -287,6 +287,7 @@ def play_loop(
             if addr != peer:
                 stats.other()
                 print(f"unexpected sender: {addr}, msg: {msg!r}")
+                need_send = True
                 continue
 
             data = msg.decode('utf-8').split(":")
@@ -313,6 +314,7 @@ def play_loop(
                     print(f"unexpected msg: {msg!r}")
                 continue
         else:
+            same_line_print(1, "\nmiss")
             stats.miss()
             need_send = True
 
