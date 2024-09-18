@@ -274,10 +274,13 @@ def play_loop(
     peer_pick, pick = next_pick(turn)
 
     msg_cache: set[bytes] = set()
+    need_send = True
 
     while turn < 10:
         our_msg = f"go:{turn}:{pick}".encode('utf-8')
-        s.sendto(our_msg, peer)
+        if need_send:
+            s.sendto(our_msg, peer)
+            need_send = False
 
         if (res := timeout_recv(s, 0.15)) is not None:
             msg, addr = res
@@ -311,7 +314,7 @@ def play_loop(
                 continue
         else:
             stats.miss()
-            s.sendto(our_msg, peer)
+            need_send = True
 
 def main_loop(
     s: socket.socket,
