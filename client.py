@@ -303,7 +303,7 @@ def play_loop(
                 continue
             else:
                 stats.other()
-                print(f"unexpected msg: {msg!r}")
+                #print(f"unexpected msg: {msg!r}")
                 continue
         else:
             stats.miss()
