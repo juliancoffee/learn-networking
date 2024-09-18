@@ -296,12 +296,13 @@ def play_loop(
                 turn += 1
                 peer_pick, pick = next_pick(turn)
                 continue
-            elif data[0] == "go" and int(data[1]) == turn:
+            elif data[0] == "go":
+                peer_turn = int(data[1])
                 stats.got()
                 if peer_pick is None:
                     peer_pick = data[2]
-                    print(f"on turn {turn} opponent picked {peer_pick}")
-                s.sendto(f"ack:{turn}".encode('utf-8'), peer)
+                    print(f"on turn {peer_turn} opponent picked {peer_pick}")
+                s.sendto(f"ack:{peer_turn}".encode('utf-8'), peer)
                 continue
             else:
                 stats.other()
