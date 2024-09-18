@@ -1,5 +1,6 @@
 from typing import Optional
 
+import random
 import copy
 import time
 import socket
@@ -202,16 +203,19 @@ class Stats:
         ms_passed = (time.time_ns() - self.start) / (10 ** 6)
         print(f"time:\n\t{ms_passed} miliseconds")
 
-def reconnect(
+def try_to_reconnect(
     s: socket.socket,
     our_id: str,
     peer_id: str,
     remote: Addr
-) -> Addr:
-    _, port = s.getsockname()
-    s = prepare_socket(port + 1)
-    peer = first_peer_fetch(s, our_id, peer_id, remote)
-    return peer
+) -> socket.socket:
+    # because both peers probably will try to reconnect
+    # add some randomness to the process
+    if random.random() >= 0.50:
+        _, port = s.getsockname()
+        s = prepare_socket(port + 1)
+        make_peer_req(s, our_id, peer_id, remote)
+    return s
 
 def connection_loop(
     stats: Stats,
@@ -224,9 +228,9 @@ def connection_loop(
     peer = first_peer_fetch(s, our_id, peer_id, remote)
 
     for i in range(100):
-        # if missed to many requests, change the port
+        # if missed to many requests, try to change the port
         if stats.failed_enough(10):
-            peer = reconnect(s, our_id, peer_id, remote)
+            s = try_to_reconnect(s, our_id, peer_id, remote)
 
         if stats.good_enough(10):
             print("<> connection is stable")
@@ -245,7 +249,7 @@ def connection_loop(
                 print(f"new peer: {peer}")
                 stats.other()
             else:
-                print(f"{msg!r}:{addr}")
+                print(f"unknown msg: {msg!r}:{addr}")
                 stats.other()
         else:
             stats.miss()
