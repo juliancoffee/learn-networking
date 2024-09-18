@@ -133,7 +133,7 @@ class Stats:
         self._other += 1
 
     def print_results(self):
-        print(f"miss/got = {self._miss}/{self._got}")
+        print(f"miss/got/other = {self._miss}/{self._got}/{self._other}")
         ms_passed = (time.time_ns() - self.start) / (10 ** 6)
         print(f"total time: {ms_passed} miliseconds")
 
