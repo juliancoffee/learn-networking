@@ -273,6 +273,8 @@ def play_loop(
     turn = 0
     peer_pick, pick = next_pick(turn)
 
+    msg_cache: set[bytes] = set()
+
     while turn < 10:
         our_msg = f"go:{turn}:{pick}".encode('utf-8')
         s.sendto(our_msg, peer)
@@ -303,7 +305,9 @@ def play_loop(
                 continue
             else:
                 stats.other()
-                #print(f"unexpected msg: {msg!r}")
+                if msg not in msg_cache:
+                    msg_cache.add(msg)
+                    print(f"unexpected msg: {msg!r}")
                 continue
         else:
             stats.miss()
