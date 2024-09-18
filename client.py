@@ -117,33 +117,22 @@ def prepare_socket(port: Optional[int] = None) -> socket.socket:
 
 class Stats:
     def __init__(self):
-        self.miss = 0
-        self.got = 0
+        self._miss = 0
+        self._got = 0
 
         self.start = time.time_ns()
 
     def miss(self):
-        self.miss += 1
+        self._miss += 1
 
     def got(self):
-        self.got += 1
+        self._got += 1
 
     def print_results(self):
         print(f"{miss=}")
         print(f"{got=}")
         ms_passed = (time.time_ns() - self.start) / (10 ** 6)
         print(f"total time: {ms_passed} miliseconds")
-
-def hi_peer(s, peer: Addr, dbg: bool = True):
-    s.sendto(f"hi peer on {peer[0]}".encode("utf-8"), peer)
-    if dbg:
-        print(f"<> said hello to peer")
-
-def check_peer(s, dbg: bool=True):
-    msg, addr = s.recvfrom(100)
-    if dbg:
-        print(f"<> got message from our peer on {addr}")
-        print(f"<> {msg!r} our peer said")
 
 def main_loop(
     s: socket.socket,
