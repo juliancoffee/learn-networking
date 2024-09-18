@@ -87,16 +87,6 @@ def disconnect(
     s.sendto(req.encode('utf-8'), (remote_host, remote_port))
     print("<> requested exit")
 
-def hi_peer(s, peer: Addr, dbg: bool = True):
-    s.sendto(f"hi peer on {peer[0]}".encode("utf-8"), peer)
-    if dbg:
-        print(f"<> said hello to peer")
-
-def check_peer(s, dbg: bool=True):
-    msg, addr = s.recvfrom(100)
-    if dbg:
-        print(f"<> got message from our peer on {addr}")
-        print(f"<> {msg!r} our peer said")
 
 
 def prepare_socket(port: Optional[int] = None) -> socket.socket:
@@ -106,8 +96,8 @@ def prepare_socket(port: Optional[int] = None) -> socket.socket:
             print(f"<> using src port: {port}")
         except (ValueError, IndexError):
             port = 9_990
-            print("<err> couldn't get the src port from arguments")
-            print(f"<> using default src port: {port}")
+            print("<warn> couldn't get the src port from arguments."
+                  f" Using default src port: {port}")
 
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     while True:
@@ -125,38 +115,77 @@ def prepare_socket(port: Optional[int] = None) -> socket.socket:
     return s
 
 
+class Stats:
+    def __init__(self):
+        self.miss = 0
+        self.got = 0
+
+        self.start = time.time_ns()
+
+    def miss(self):
+        self.miss += 1
+
+    def got(self):
+        self.got += 1
+
+    def print_results(self):
+        print(f"{miss=}")
+        print(f"{got=}")
+        ms_passed = (time.time_ns() - self.start) / (10 ** 6)
+        print(f"total time: {ms_passed} miliseconds")
+
+def hi_peer(s, peer: Addr, dbg: bool = True):
+    s.sendto(f"hi peer on {peer[0]}".encode("utf-8"), peer)
+    if dbg:
+        print(f"<> said hello to peer")
+
+def check_peer(s, dbg: bool=True):
+    msg, addr = s.recvfrom(100)
+    if dbg:
+        print(f"<> got message from our peer on {addr}")
+        print(f"<> {msg!r} our peer said")
+
 def main_loop(
     s: socket.socket,
     our_id: str,
     peer_id: str,
     remote,
 ) -> None:
+    print("<> initiating connection")
     peer = first_peer_fetch(s, our_id, peer_id, remote)
     print("<> starting the main loop")
 
-    miss = 0
-    got = 0
 
-    now = time.time_ns()
-    for i in range(50):
-        if i == 0:
-            print(f"<{i}th iteration>    ")
-        else:
-            print(f"\x1b[1A<{i}th iteration>    ")
-        # repeat
-        hi_peer(s, peer, dbg=False)
-        # anybody there?
+    stats = Stats()
+    error_clock = 0
+    for i in itertools.count():
+        same_line_print(i, f"<{i}th iteration>")
+
+        # if missed to many requests, change the port
+        if error_clock == 10:
+            _, port = s.getsockname()
+            s = prepare_socket(port + 1)
+            peer = first_peer_fetch(s, our_id, peer_id, remote)
+            error_clock = 0
+
+
+        s.sendto(b"ping", peer)
         ok_read, ok_write, errs = select.select([s], [], [], 0.15)
         if ok_read:
-            got += 1
-            check_peer(ok_read[0], dbg=False)
+            s = ok_read[0]
+            msg, addr = s.recvfrom(100)
+            if addr == peer:
+                error_clock = 0
+                stats.got()
+            elif addr == remote:
+                _, peer = parse_server_msg(msg)
         else:
-            miss += 1
+            error_clock += 1
+            stats.miss()
 
-    print(f"{miss=}")
-    print(f"{got=}")
-    print(f"total time: {(time.time_ns() - now) / (10 ** 6)} miliseconds")
 
+        if (i % 10) == 0:
+            stats.print_results()
 
 def main() -> None:
     try:
