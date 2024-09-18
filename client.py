@@ -119,6 +119,7 @@ class Stats:
     def __init__(self):
         self._miss = 0
         self._got = 0
+        self._other = 0
 
         self.start = time.time_ns()
 
@@ -127,6 +128,9 @@ class Stats:
 
     def got(self):
         self._got += 1
+
+    def other(self):
+        self._other += 1
 
     def print_results(self):
         print(f"miss/got = {self._miss}/{self._got}")
@@ -146,6 +150,7 @@ def main_loop(
 
     stats = Stats()
     error_clock = 0
+    ok_clock = 0
     for i in range(100):
         # if missed to many requests, change the port
         if error_clock == 10:
@@ -162,15 +167,21 @@ def main_loop(
             msg, addr = s.recvfrom(100)
             if addr == peer:
                 error_clock = 0
+                ok_clock += 1
                 stats.got()
             elif addr == remote:
                 _, peer = parse_server_msg(msg)
+                print(f"new peer: {peer}")
+                stats.other()
+            else:
+                print(f"{msg}:{addr}")
+                self.other()
         else:
             error_clock += 1
             stats.miss()
 
 
-        if (i % 10) == 0:
+        if (ok_clock % 10) == 0:
             stats.print_results()
     stats.print_results
 
