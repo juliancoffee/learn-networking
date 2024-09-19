@@ -281,43 +281,44 @@ def play_loop(
         our_msg = f"go:{turn}:{pick}".encode('utf-8')
         s.sendto(our_msg, peer)
 
-        if (res := timeout_recv(s, 0.15)) is not None:
-            msg, addr = res
-            if addr != peer:
-                stats.other()
-                print(f"unexpected sender: {addr}, msg: {msg!r}")
-                continue
+        while True:
+            if (res := timeout_recv(s, 0.15)) is not None:
+                msg, addr = res
+                if addr != peer:
+                    stats.other()
+                    print(f"unexpected sender: {addr}, msg: {msg!r}")
+                    continue
 
-            data = msg.decode('utf-8').split(":")
-            if data[0] == "ping":
-                stats.other()
-                print(f"leftover ping")
-                continue
-            elif data[0] == "ack" and int(data[1]) == turn:
-                stats.got()
-                turn += 1
-                pick = next_pick(turn)
-                continue
-            elif data[0] == "go":
-                peer_turn = int(data[1])
-                if peer_picks.get(peer_turn) is None:
+                data = msg.decode('utf-8').split(":")
+                if data[0] == "ping":
+                    stats.other()
+                    print(f"leftover ping")
+                    continue
+                elif data[0] == "ack" and int(data[1]) == turn:
                     stats.got()
-                    peer_pick = data[2]
-                    peer_picks[peer_turn] = peer_pick
-                    print(f"<_> on turn {peer_turn} opponent picked {peer_pick}")
+                    turn += 1
+                    pick = next_pick(turn)
+                    break
+                elif data[0] == "go":
+                    peer_turn = int(data[1])
+                    if peer_picks.get(peer_turn) is None:
+                        stats.got()
+                        peer_pick = data[2]
+                        peer_picks[peer_turn] = peer_pick
+                        print(f"<_> on turn {peer_turn} opponent picked {peer_pick}")
+                    else:
+                        stats.other()
+                    s.sendto(f"ack:{peer_turn}".encode('utf-8'), peer)
+                    continue
                 else:
                     stats.other()
-                s.sendto(f"ack:{peer_turn}".encode('utf-8'), peer)
-                continue
+                    if msg not in msg_cache:
+                        msg_cache.add(msg)
+                        print(f"unexpected msg: {msg!r}")
+                    continue
             else:
-                stats.other()
-                if msg not in msg_cache:
-                    msg_cache.add(msg)
-                    print(f"unexpected msg: {msg!r}")
-                continue
-        else:
-            s.sendto(our_msg, peer)
-            stats.miss()
+                s.sendto(our_msg, peer)
+                stats.miss()
 
 def main_loop(
     s: socket.socket,
