@@ -4,6 +4,8 @@ import select
 import socket
 import sys
 
+from datetime import datetime
+
 
 # pair of addresses
 Addr = tuple[str, int]
@@ -107,6 +109,7 @@ class Mapping:
 
             if entry.get_addr_of(their_id) is None:
                 self.mapping.pop(mark)
+                print(f"<> removed entry for {our_id}@{their_id}")
             else:
                 entry.set_addr_of(our_id, None)
 
@@ -175,7 +178,8 @@ def loop() -> Never:
             msg_bytes, our_addr = s.recvfrom(100)
             payload = msg_bytes.decode('utf-8')
 
-            print(f"<> [{our_addr}]: {payload}")
+            time = datetime.now()
+            print(f"<{time}> [{our_addr}]: {payload}")
 
             cmd, msg = payload.split("#")
             if cmd == "JOIN":
