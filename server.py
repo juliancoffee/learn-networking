@@ -16,7 +16,7 @@ class Entry:
     def __init__(
         self,
         ids: tuple[str, str],
-        addrs: tuple[Addr, Optional[Addr]]
+        addrs: tuple[Optional[Addr], Optional[Addr]]
     ) -> None:
         self._a = (ids[0], addrs[0])
         self._b = (ids[1], addrs[1])
@@ -37,7 +37,7 @@ class Entry:
 
         return self._is_direct(ids) or self._is_reverse(ids)
 
-    def addr_of(self, ident: str) -> Optional[Addr]:
+    def get_addr_of(self, ident: str) -> Optional[Addr]:
         """ Get the addr of identifier if any """
         if self._a[0] == ident:
             return self._a[1]
@@ -46,7 +46,7 @@ class Entry:
         else:
             raise AttributeError
 
-    def set_addr_of(self, ident: str, addr: Addr) -> None:
+    def set_addr_of(self, ident: str, addr: Optional[Addr]) -> None:
         """ Set the addr for identifier """
         if self._a[0] == ident:
             self._a = (self._a[0], addr)
@@ -63,8 +63,8 @@ class Entry:
         if self._b[1] is None:
             return None
 
-        assert (first := self.addr_of(ids[0])) is not None
-        assert (second := self.addr_of(ids[1])) is not None
+        assert (first := self.get_addr_of(ids[0])) is not None
+        assert (second := self.get_addr_of(ids[1])) is not None
 
         return first, second
 
@@ -94,15 +94,21 @@ class Mapping:
         else:
             return None
 
-    def remove_entry(self, ids: tuple[str, str]):
-        to_remove = None
+    def remove_from_entry(self, addr: Addr, ids: tuple[str, str]):
+        mark = None
         for i, entry in enumerate(self.mapping):
             if entry.corresponds(ids):
-                to_remove = i
+                mark = i
                 break
 
-        if to_remove is not None:
-            self.mapping.pop(to_remove)
+        if mark is not None:
+            our_id, their_id = ids
+            entry = self.mapping[mark]
+
+            if entry.get_addr_of(their_id) is None:
+                self.mapping.pop(mark)
+            else:
+                entry.set_addr_of(our_id, None)
 
 
 
@@ -141,11 +147,11 @@ def handle_join(s: socket.socket, mapping: Mapping, our_addr: Addr, msg: str):
         )
         print(f"<> send their addresses to both: {our_id} @ {their_id}")
 
-def handle_exit(mapping: Mapping, msg: str):
+def handle_exit(mapping: Mapping, our_addr: Addr, msg: str):
     our_id, their_id = msg.split("@")
     id_pair = our_id, their_id
 
-    mapping.remove_entry(id_pair)
+    mapping.remove_from_entry(our_addr, id_pair)
 
 
 def loop() -> Never:
@@ -175,7 +181,7 @@ def loop() -> Never:
             if cmd == "JOIN":
                 handle_join(s, mapping, our_addr, msg)
             elif cmd == "EXIT":
-                handle_exit(mapping, msg)
+                handle_exit(mapping, our_addr, msg)
 
 if __name__ == "__main__":
     loop()
