@@ -214,7 +214,8 @@ def try_to_reconnect(
     if random.random() >= 0.50:
         _, port = s.getsockname()
         s = prepare_socket(port + 1)
-        make_peer_req(s, our_id, peer_id, remote)
+    # send peer request anyway though
+    make_peer_req(s, our_id, peer_id, remote)
     return s
 
 def connection_loop(
@@ -269,12 +270,12 @@ def play_loop(
     stats: Stats,
     s: socket.socket,
     peer: Addr,
+    remote: Addr,
 ) -> None:
     turn = 0
     pick = next_pick(turn)
 
     peer_picks: dict[int, str] = {}
-
     msg_cache: set[bytes] = set()
 
     while turn < 10:
@@ -284,6 +285,12 @@ def play_loop(
         while True:
             if (res := timeout_recv(s, 0.15)) is not None:
                 msg, addr = res
+                if addr == remote:
+                    _, peer = parse_server_msg(msg)
+                    print(f"new peer: {peer}")
+                    stats.other()
+                    continue
+
                 if addr != peer:
                     stats.other()
                     print(f"unexpected sender: {addr}, msg: {msg!r}")
@@ -330,7 +337,7 @@ def main_loop(
     # establish a connection
     try:
         peer = connection_loop(stats, s, our_id, peer_id, remote)
-        play_loop(stats, s, peer)
+        play_loop(stats, s, peer, remote)
     finally:
         stats.print_results()
 
