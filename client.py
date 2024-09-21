@@ -268,7 +268,6 @@ def establish_connection2(
                     _, peer = parse_server_msg(msg)
                     print(f"new peer: {peer}")
                     stats.remote()
-                    break
                 else:
                     stats.other()
                     # idk what to do in this case
@@ -279,7 +278,7 @@ def establish_connection2(
                     #
                     # but I think this situation will fix itself in the end
                     breakpoint()
-                    break
+                break
 
             data = msg.decode('utf-8').split(":")
             match data:
@@ -350,7 +349,6 @@ def play_loop2(
                         _, peer = parse_server_msg(msg)
                         print(f"new peer: {peer}")
                         stats.remote()
-                        break
                     else:
                         stats.other()
                         # idk what to do in this case
@@ -362,7 +360,7 @@ def play_loop2(
                         # but I think this situation will fix itself in the end
                         # will add breakpoint anyway
                         breakpoint()
-                        break
+                    break
 
                 data = msg.decode('utf-8').split(":")
                 match data:
