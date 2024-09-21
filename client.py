@@ -378,8 +378,12 @@ def play_loop2(
                                 breakpoint()
                         else:
                             stats.other()
+                    case ["init_syn", y_str]:
+                        y = int(y_str)
+                        init_ack_msg = f"init_ack:{y}".encode('utf-8')
+                        s.sendto(init_ack_msg, peer)
                     case _:
-                        raise NotImplementedError
+                        breakpoint()
             else:
                 stats.miss()
                 s.sendto(turn_msg(state.turn, pick), peer)
