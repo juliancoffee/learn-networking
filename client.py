@@ -297,49 +297,6 @@ def establish_connection2(
     return s, peer
 
 
-def establish_connection(
-    stats: Stats,
-    s: socket.socket,
-    our_id: str,
-    peer_id: str,
-    remote: Addr,
-) -> Addr:
-    print("<> initiating connection")
-    peer = first_peer_fetch(s, our_id, peer_id, remote)
-
-    for i in range(100):
-        # if missed to many requests, try to change the port
-        if stats.failed_enough(10):
-            s = try_to_reconnect(s, our_id, peer_id, remote)
-
-        if stats.good_enough(10):
-            print("<> connection is stable")
-            return peer
-
-        # ping
-        s.sendto(b"ping", peer)
-
-        # check the result
-        if (res := timeout_recv(s, 0.15)) is not None:
-            msg, addr = res
-            if addr == peer:
-                stats.got()
-            elif addr == remote:
-                _, peer = parse_server_msg(msg)
-                print(f"new peer: {peer}")
-                stats.other()
-            else:
-                print(f"unknown msg: {msg!r}:{addr}")
-                stats.other()
-        else:
-            stats.miss()
-
-
-        if (i % 10) == 0 and i != 0:
-            stats.print_step()
-    else:
-        raise RuntimeError("failed to establish connection")
-
 def next_pick(turn: int) -> str:
     pick = random.choice(["paper", "rock", "scissors"])
     print(f"<*> on turn {turn} we picked: {pick}")
@@ -415,7 +372,7 @@ def main_loop(
     stats = Stats()
     # establish a connection
     try:
-        peer = establish_connection(stats, s, our_id, peer_id, remote)
+        s, peer = establish_connection2(stats, s, our_id, peer_id, remote)
         play_loop(stats, s, peer, remote)
     finally:
         stats.print_results()
