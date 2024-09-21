@@ -268,6 +268,7 @@ def establish_connection2(
                     _, peer = parse_server_msg(msg)
                     print(f"new peer: {peer}")
                     stats.remote()
+                    break
                 else:
                     stats.other()
                     # idk what to do in this case
@@ -278,6 +279,7 @@ def establish_connection2(
                     #
                     # but I think this situation will fix itself in the end
                     print(f"unknown message: {msg!r}<>{peer}")
+                    break
 
             data = msg.decode('utf-8').split(":")
             match data:
