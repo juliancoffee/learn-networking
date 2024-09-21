@@ -62,7 +62,7 @@ class Entry:
             ids: tuple[str, str],
         ) -> Optional[tuple[Addr, Addr]]:
         """ Return full addr pair if possible """
-        if self._b[1] is None:
+        if self._b[1] is None or self._a[1] is None:
             return None
 
         assert (first := self.get_addr_of(ids[0])) is not None
