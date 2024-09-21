@@ -278,7 +278,7 @@ def establish_connection2(
                     # message from the remote
                     #
                     # but I think this situation will fix itself in the end
-                    print(f"unknown message: {msg!r}<>{peer}")
+                    breakpoint()
                     break
 
             data = msg.decode('utf-8').split(":")
@@ -346,7 +346,23 @@ def play_loop2(
             if (res := timeout_recv(s, 0.15)) is not None:
                 msg, addr = res
                 if addr != peer:
-                    raise NotImplementedError(addr, peer)
+                    if addr == remote:
+                        _, peer = parse_server_msg(msg)
+                        print(f"new peer: {peer}")
+                        stats.remote()
+                        break
+                    else:
+                        stats.other()
+                        # idk what to do in this case
+                        # it's possible that our peer will decide to change
+                        # its port and they'll get the response from remote server
+                        # and send the message to us sooner than we'll get the
+                        # message from the remote
+                        #
+                        # but I think this situation will fix itself in the end
+                        # will add breakpoint anyway
+                        breakpoint()
+                        break
 
                 data = msg.decode('utf-8').split(":")
                 match data:
@@ -383,6 +399,11 @@ def play_loop2(
                         y = int(y_str)
                         init_ack_msg = f"init_ack:{y}".encode('utf-8')
                         s.sendto(init_ack_msg, peer)
+
+                        stats.other()
+                    # lol, I didn't even this is possible
+                    case ["init_ack", y_str]:
+                        stats.other()
                     case _:
                         breakpoint()
             else:
