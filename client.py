@@ -346,7 +346,7 @@ def play_loop2(
             if (res := timeout_recv(s, 0.15)) is not None:
                 msg, addr = res
                 if addr != peer:
-                    raise NotImplementedError
+                    raise NotImplementedError(addr, peer)
 
                 data = msg.decode('utf-8').split(":")
                 match data:
