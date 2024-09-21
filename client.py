@@ -337,8 +337,8 @@ def play_loop2(
 
     pick = None
     while state.turn < 10:
-        pick = next_pick(turn)
-        s.sendto(turn_msg(turn, pick), peer)
+        pick = next_pick(state.turn)
+        s.sendto(turn_msg(state.turn, pick), peer)
 
         while True:
             if (res := timeout_recv(s, 0.15)) is not None:
@@ -348,7 +348,9 @@ def play_loop2(
 
                 data = msg.decode('utf-8').split(":")
                 match data:
-                    case ["ack", turn_str] if int(turn_str) == turn:
+                    case ["ack", turn_str] if int(turn_str) == state.turn:
+                        stats.got()
+
                         state.us_ok = True
                         if state.is_ready():
                             state.next_turn()
@@ -358,8 +360,10 @@ def play_loop2(
                         s.sendto(ack_msg(their_turn), peer)
 
                         if their_turn not in their_picks:
+                            stats.got()
+
                             their_picks[their_turn] = their_pick
-                            if their_turn == turn:
+                            if their_turn == state.turn:
                                 state.they_ok = True
                                 if state.is_ready():
                                     state.next_turn()
@@ -370,8 +374,13 @@ def play_loop2(
                             else:
                                 # this shouldn't be hit
                                 breakpoint()
+                        else:
+                            stats.other()
                     case _:
                         raise NotImplementedError
+            else:
+                stats.miss()
+                s.sendto(turn_msg(state.turn, pick), peer)
 
 def play_loop(
     stats: Stats,
