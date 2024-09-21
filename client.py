@@ -401,8 +401,14 @@ def play_loop2(
                         s.sendto(init_ack_msg, peer)
 
                         stats.other()
-                    # lol, I didn't even this is possible
                     case ["init_ack", y_str]:
+                        # if we can receive init_syn after the fact
+                        # surefly we can expect init_ack after the fact
+                        stats.other()
+                    case ["ack", turn_str] if int(turn_str) < state.turn:
+                        # i'm not exactly sure how this one happened,
+                        # but seems like someone sent slightly more messages
+                        # than needed
                         stats.other()
                     case _:
                         breakpoint()
