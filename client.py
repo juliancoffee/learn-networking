@@ -134,6 +134,7 @@ class Stats:
         # counters
         self.miss_counter = 0
         self.got_counter = 0
+        self.remote_counter = 0
         self.other_counter = 0
 
         # failure counters
@@ -158,6 +159,9 @@ class Stats:
         self.ok_clock += 1
         self.err_clock = 0
 
+    def remote(self):
+        self.remote_counter += 1
+
     def other(self):
         self.other_counter += 1
 
@@ -180,11 +184,13 @@ class Stats:
             miss = self.miss_counter
             got = self.got_counter
             other = self.other_counter
+            remote = self.remote_counter
             ns_passed = time.time_ns() - self.start
         else:
             miss = self.miss_counter - self.last.miss_counter
             got = self.got_counter - self.last.got_counter
             other = self.other_counter - self.last.other_counter
+            remote = self.remote_counter - self.last.remote_counter
             ns_passed = time.time_ns() - self.last.ns
 
         print(f"miss/got/other: {miss}/{got}/{other}")
@@ -200,6 +206,7 @@ class Stats:
         print(f"miss:\n\t{self.miss_counter}")
         print(f"got:\n\t{self.got_counter}")
         print(f"other:\n\t{self.other_counter}")
+        print(f"remote:\n\t{self.remote_counter}")
         ms_passed = (time.time_ns() - self.start) / (10 ** 6)
         print(f"time:\n\t{ms_passed} miliseconds")
 
@@ -217,6 +224,78 @@ def try_to_reconnect(
     # send peer request anyway though
     make_peer_req(s, our_id, peer_id, remote)
     return s
+
+def establish_connection2(
+    stats: Stats,
+    s: socket.socket,
+    our_id: str,
+    peer_id: str,
+    remote: Addr,
+) -> tuple[socket.socket, Addr]:
+    """ Try to establish a connection
+
+    It's possible that portion of this protocol will leak to the next
+    stage, so you'll need to handle potential syn() from the peer.
+    """
+    def syn_msg(rand_x: int) -> bytes:
+        return f"syn:{rand_x}".encode('utf-8')
+    def ack_msg(y: int) -> bytes:
+        return f"ack:{y}".encode('utf-8')
+
+    print("<> initiating connection")
+    peer = first_peer_fetch(s, our_id, peer_id, remote)
+
+    us_ok = False
+    them_maybe_ok = False
+
+    # send first syn to the peer
+    init_x = random.randint(0, 100)
+    s.sendto(syn_msg(init_x), peer)
+
+    # start the main stage
+    while (not us_ok) or (not them_maybe_ok):
+        if stats.failed_enough(50):
+            print("can't establish connection, I give up")
+            sys.exit(1)
+
+        if stats.failed_enough(10):
+            s = try_to_reconnect(s, our_id, peer_id, remote)
+
+        if (res := timeout_recv(s, 0.15)) is not None:
+            msg, addr = res
+            if addr != peer:
+                if addr == remote:
+                    _, peer = parse_server_msg(msg)
+                    print(f"new peer: {peer}")
+                    stats.remote()
+                else:
+                    stats.other()
+                    # idk what to do in this case
+                    # it's possible that our peer will decide to change
+                    # its port and they'll get the response from remote server
+                    # and send the message to us sooner than we'll get the
+                    # message from the remote
+                    #
+                    # but I think this situation will fix itself in the end
+                    print(f"unknown message: {msg!r}<>{peer}")
+
+            data = msg.decode("").split(":")
+            match data:
+                case ["ack", x_str] if int(x_str) == init_x:
+                    us_ok = True
+                case ["syn", y_str]:
+                    y = int(y_str)
+                    s.sendto(ack_msg(y), peer)
+                    them_maybe_ok = True
+                case _:
+                    raise NotImplementedError(msg, addr)
+        else:
+            stats.miss()
+            if not us_ok:
+                s.sendto(syn_msg(init_x), peer)
+
+    return s, peer
+
 
 def establish_connection(
     stats: Stats,
