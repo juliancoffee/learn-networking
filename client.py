@@ -238,9 +238,9 @@ def establish_connection2(
     stage, so you'll need to handle potential syn() from the peer.
     """
     def syn_msg(rand_x: int) -> bytes:
-        return f"syn:{rand_x}".encode('utf-8')
+        return f"init_syn:{rand_x}".encode('utf-8')
     def ack_msg(y: int) -> bytes:
-        return f"ack:{y}".encode('utf-8')
+        return f"init_ack:{y}".encode('utf-8')
 
     print("<> initiating connection")
     peer = first_peer_fetch(s, our_id, peer_id, remote)
@@ -281,14 +281,14 @@ def establish_connection2(
 
             data = msg.decode("").split(":")
             match data:
-                case ["ack", x_str] if int(x_str) == init_x:
+                case ["init_ack", x_str] if int(x_str) == init_x:
                     us_ok = True
-                case ["syn", y_str]:
+                case ["init_syn", y_str]:
                     y = int(y_str)
                     s.sendto(ack_msg(y), peer)
                     them_maybe_ok = True
                 case _:
-                    raise NotImplementedError(msg, addr)
+                    breakpoint()
         else:
             stats.miss()
             if not us_ok:
@@ -301,6 +301,77 @@ def next_pick(turn: int) -> str:
     pick = random.choice(["paper", "rock", "scissors"])
     print(f"<*> on turn {turn} we picked: {pick}")
     return pick
+
+class State:
+    turn: int
+    us_ok: bool
+    they_ok: bool
+
+    def __init__(self):
+        self.turn = 0
+        self.us_ok = False
+        self.they_ok = False
+
+    def is_ready(self) -> bool:
+        return self.us_ok and self.they_ok
+
+    def next_turn(self):
+        self.turn += 1
+        self.us_ok = False
+        self.they_ok = False
+
+def play_loop2(
+    stats: Stats,
+    s: socket.socket,
+    peer: Addr,
+    remote: Addr,
+) -> None:
+    def turn_msg(turn: int, pick: str) -> bytes:
+        return f"go:{turn}:{pick}".encode('utf-8')
+
+    def ack_msg(turn: int) -> bytes:
+        return f"ack:{turn}".encode('utf-8')
+
+    state = State()
+    their_picks: dict[int, str] = {}
+
+    pick = None
+    while state.turn < 10:
+        pick = next_pick(turn)
+        s.sendto(turn_msg(turn, pick), peer)
+
+        while True:
+            if (res := timeout_recv(s, 0.15)) is not None:
+                msg, addr = res
+                if addr != peer:
+                    raise NotImplementedError
+
+                data = msg.decode('utf-8').split(":")
+                match data:
+                    case ["ack", turn_str] if int(turn_str) == turn:
+                        state.us_ok = True
+                        if state.is_ready():
+                            state.next_turn()
+                            break
+                    case ["go", turn_str, their_pick]:
+                        their_turn = int(turn_str)
+                        s.sendto(ack_msg(their_turn), peer)
+
+                        if their_turn not in their_picks:
+                            their_picks[their_turn] = their_pick
+                            if their_turn == turn:
+                                state.they_ok = True
+                                if state.is_ready():
+                                    state.next_turn()
+                                    break
+                                else:
+                                    # this shouldn't be hit
+                                    breakpoint()
+                            else:
+                                # this shouldn't be hit
+                                breakpoint()
+                    case _:
+                        raise NotImplementedError
 
 def play_loop(
     stats: Stats,
@@ -373,7 +444,7 @@ def main_loop(
     # establish a connection
     try:
         s, peer = establish_connection2(stats, s, our_id, peer_id, remote)
-        play_loop(stats, s, peer, remote)
+        play_loop2(stats, s, peer, remote)
     finally:
         stats.print_results()
 
