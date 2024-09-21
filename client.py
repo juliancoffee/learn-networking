@@ -358,6 +358,10 @@ def play_loop2(
                             state.next_turn()
                             break
                     case ["go", turn_str, their_pick]:
+                        print(
+                            "<-> on turn {} opponent picked {}"
+                              .format(turn_str, their_pick)
+                        )
                         their_turn = int(turn_str)
                         s.sendto(ack_msg(their_turn), peer)
 
