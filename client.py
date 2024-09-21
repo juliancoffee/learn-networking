@@ -218,7 +218,7 @@ def try_to_reconnect(
     make_peer_req(s, our_id, peer_id, remote)
     return s
 
-def connection_loop(
+def establish_connection(
     stats: Stats,
     s: socket.socket,
     our_id: str,
@@ -336,7 +336,7 @@ def main_loop(
     stats = Stats()
     # establish a connection
     try:
-        peer = connection_loop(stats, s, our_id, peer_id, remote)
+        peer = establish_connection(stats, s, our_id, peer_id, remote)
         play_loop(stats, s, peer, remote)
     finally:
         stats.print_results()
