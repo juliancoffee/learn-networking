@@ -279,7 +279,7 @@ def establish_connection2(
                     # but I think this situation will fix itself in the end
                     print(f"unknown message: {msg!r}<>{peer}")
 
-            data = msg.decode("").split(":")
+            data = msg.decode('utf-8').split(":")
             match data:
                 case ["init_ack", x_str] if int(x_str) == init_x:
                     us_ok = True
