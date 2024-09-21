@@ -370,9 +370,6 @@ def play_loop2(
                                 if state.is_ready():
                                     state.next_turn()
                                     break
-                                else:
-                                    # this shouldn't be hit
-                                    breakpoint()
                             else:
                                 # this shouldn't be hit
                                 breakpoint()
