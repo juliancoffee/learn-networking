@@ -225,7 +225,7 @@ def try_to_reconnect(
 ) -> socket.socket:
     # because both peers probably will try to reconnect
     # add some randomness to the process
-    if random.random() >= 0.50:
+    if random.random() >= 0.80:
         _, port = s.getsockname()
         s = prepare_socket(port + 1)
     # send peer request anyway though
@@ -350,6 +350,9 @@ def play_loop2(
         s.sendto(turn_msg(state.turn, pick), peer)
 
         while True:
+            if stats.failed_enough(10):
+                s = try_to_reconnect(s, our_id, peer_id, remote)
+
             if (res := timeout_recv(s, 0.15)) is not None:
                 msg, addr = res
                 if addr != peer:
