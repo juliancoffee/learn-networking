@@ -353,6 +353,7 @@ def play_loop2(
 
         while True:
             if stats.failed_enough(10):
+                print("<> failure, trying to reconnect")
                 s = try_to_reconnect(s, our_id, peer_id, remote)
 
             if (res := timeout_recv(s, 0.15)) is not None:
