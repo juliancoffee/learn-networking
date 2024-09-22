@@ -148,6 +148,13 @@ class Stats:
         self.last = None
         self.ns = 0.0
 
+    def reset(self):
+        """ Restart timer """
+        self.start = time.time_ns()
+
+        self.last = None
+        self.ns = 0.0
+
     def miss(self):
         self.miss_counter += 1
 
@@ -243,6 +250,7 @@ def establish_connection2(
         return f"init_ack:{y}".encode('utf-8')
 
     print("<> initiating connection")
+    stats.reset()
     peer = first_peer_fetch(s, our_id, peer_id, remote)
 
     us_ok = False
