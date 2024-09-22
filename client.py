@@ -250,8 +250,8 @@ def establish_connection2(
         return f"init_ack:{y}".encode('utf-8')
 
     print("<> initiating connection")
-    stats.reset()
     peer = first_peer_fetch(s, our_id, peer_id, remote)
+    stats.reset()
 
     us_ok = False
     them_maybe_ok = False
