@@ -303,6 +303,7 @@ def establish_connection2(
             if not us_ok:
                 s.sendto(syn_msg(init_x), peer)
 
+    print("<> connection is probably stable")
     return s, peer
 
 
