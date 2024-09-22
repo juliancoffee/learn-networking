@@ -286,7 +286,7 @@ def establish_connection2(
                     #
                     # but I think this situation will fix itself in the end
                     breakpoint()
-                break
+                continue
 
             data = msg.decode('utf-8').split(":")
             match data:
