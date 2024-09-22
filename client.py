@@ -332,6 +332,8 @@ class State:
 def play_loop2(
     stats: Stats,
     s: socket.socket,
+    our_id: str,
+    peer_id: str,
     peer: Addr,
     remote: Addr,
 ) -> None:
@@ -435,7 +437,7 @@ def main_loop(
     # establish a connection
     try:
         s, peer = establish_connection2(stats, s, our_id, peer_id, remote)
-        play_loop2(stats, s, peer, remote)
+        play_loop2(stats, s, our_id, peer_id, peer, remote)
     finally:
         stats.print_results()
 
