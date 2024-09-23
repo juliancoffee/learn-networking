@@ -174,6 +174,14 @@ class ReUDP:
                 self.stats.miss()
 
             self.resend_lost()
+
+        self.s = try_to_reconnect(
+            self.s,
+            self.our_id,
+            self.peer_id,
+            self.remote,
+        )
+
         return TickResult.Timeout
 
     def get(self) -> tuple[str, Addr]:
