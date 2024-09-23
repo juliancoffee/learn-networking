@@ -634,9 +634,9 @@ def main_loop2(
     remote: Addr,
 ) -> None:
     with ReUDP(s, our_id, peer_id, remote) as tunnel:
-        tunnel.tick()
         tunnel.send("hi")
-        print("hi")
+        msg, addr = tunnel.get_blocking()
+        print(msg)
 
 def main_loop(
     s: socket.socket,
