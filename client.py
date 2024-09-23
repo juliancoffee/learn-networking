@@ -79,10 +79,14 @@ class ReUDP:
         self.last_sent_id = 0
         self.sent: dict[int, tuple[str, float, bool]] = {}
 
-        self.tick()
+    def __enter__(self):
+        return self
 
-    def _first_peer_fetch(self):
-        first_peer_fetch(
+    def __exit__(self, *args, **kwargs):
+        self.stats.print_results()
+
+    def _first_peer_fetch(self) -> Addr:
+        return first_peer_fetch(
             self.s,
             self.our_id,
             self.peer_id,
@@ -90,9 +94,10 @@ class ReUDP:
         )
 
     def raw_send(self, msg: bytes) -> None:
-        assert self.peer is not None
-
-        self.s.sendto(msg, self.peer)
+        if self.peer is None:
+            breakpoint()
+        else:
+            self.s.sendto(msg, self.peer)
 
     def syn_msg(self) -> bytes:
         return f"init_syn:{self.init_x}".encode('utf-8')
@@ -123,6 +128,12 @@ class ReUDP:
             self.raw_send(self.packed_msg(i, msg))
             self.sent[i] = msg, time.monotonic(), False
 
+    def handle_remote(self, payload: bytes) -> None:
+        _, peer = parse_server_msg(payload)
+        print(f"new peer: {peer}")
+        self.peer = peer
+        self.stats.remote()
+
     def tick(self) -> TickResult:
         if self.peer is None:
             self.peer = self._first_peer_fetch()
@@ -135,6 +146,10 @@ class ReUDP:
 
             if (res := timeout_recv(self.s, 2)) is not None:
                 payload, addr = res
+                if addr == self.remote:
+                    self.handle_remote(payload)
+                    continue
+
                 data = payload.decode('utf-8').split(":")
                 match data:
                     case ["init_ack", x_str] if int(x_str) == self.init_x:
@@ -606,6 +621,17 @@ def play_loop2(
                 stats.miss()
                 s.sendto(turn_msg(state.turn, pick), peer)
 
+def main_loop2(
+    s: socket.socket,
+    our_id: str,
+    peer_id: str,
+    remote: Addr,
+) -> None:
+    with ReUDP(s, our_id, peer_id, remote) as tunnel:
+        tunnel.tick()
+        tunnel.send("hi")
+        print("hi")
+
 def main_loop(
     s: socket.socket,
     our_id: str,
@@ -648,7 +674,7 @@ def main() -> None:
     print(f"<> good, ready to connect to {remote_host}:{remote_port}")
 
     try:
-        main_loop(
+        main_loop2(
             s,
             our_id,
             peer_id,
