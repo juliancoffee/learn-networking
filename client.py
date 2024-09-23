@@ -199,7 +199,13 @@ class ReUDP:
 
         return TickResult.Timeout
 
-    def get(self) -> tuple[str, Addr]:
+    def get(self) -> Optional[tuple[str, Addr]]:
+        if self.read_list:
+            return self.read_list.pop()
+        else:
+            return None
+
+    def get_blocking(self) -> tuple[str, Addr]:
         if self.read_list:
             return self.read_list.pop()
         else:
