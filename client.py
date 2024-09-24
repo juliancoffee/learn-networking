@@ -506,7 +506,9 @@ def try_to_reconnect(
 ) -> socket.socket:
     # because both peers probably will try to reconnect
     # add some randomness to the process
-    if random.random() >= 0.80:
+    #
+    # hint: the lower is the cap, the higher is the chance
+    if random.random() >= 0.60:
         _, port = s.getsockname()
         s = prepare_socket(port + 1)
     # send peer request anyway though
