@@ -233,10 +233,6 @@ class ReUDP:
 
     def tick(self, *, attempts: int = 10) -> TickResult:
         for _ in range(attempts):
-            if not self.us_ok:
-                init_syn = self.syn_msg()
-                self.raw_send(init_syn)
-
             if (res := timeout_recv(self.s, 0.15)) is not None:
                 payload, addr = res
                 if addr == self.remote:
@@ -261,6 +257,9 @@ class ReUDP:
                     self.stats.other()
 
             else:
+                if not self.us_ok:
+                    init_syn = self.syn_msg()
+                    self.raw_send(init_syn)
                 self.stats.miss()
 
             self.try_resend_lost()
