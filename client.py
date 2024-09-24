@@ -101,6 +101,7 @@ class ReUDP:
         return self
 
     def __exit__(self, *args, **kwargs):
+        self.tick()
         self.stats.print_results()
 
     def first_peer_fetch(self) -> Addr:
