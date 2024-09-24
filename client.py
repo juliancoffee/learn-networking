@@ -113,6 +113,7 @@ class ReUDP:
         )
 
     def try_to_reconnect(self) -> None:
+        print("<> connection has failed, trying to reconnect")
         self.s = try_to_reconnect(
             self.s,
             self.our_id,
