@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Sequence
 from typing import Optional, Never, overload, assert_never, Literal
 
@@ -53,6 +55,23 @@ class TickResult(enum.Enum):
     # meta
     Dup = enum.auto()
     Timeout = enum.auto()
+
+HandleResult = Literal[
+        TickResult.GotInitSyn,
+        TickResult.GotInitAck,
+        TickResult.GotMsg,
+        TickResult.GotAck,
+        TickResult.Dup,
+    ]
+
+def register(stats: Stats, res: HandleResult) -> None:
+    match res:
+        case TickResult.GotInitSyn | TickResult.GotInitAck:
+            stats.meta()
+        case TickResult.GotMsg | TickResult.GotAck:
+            stats.got()
+        case TickResult.Dup:
+            stats.other()
 
 class ReUDP:
     """ Re_liable_UDP object to use with deNAT
@@ -159,22 +178,19 @@ class ReUDP:
         self.peer = peer
         self.stats.remote()
 
-    def handle_peer(self, payload: bytes) -> Literal[TickResult.GotInitSyn, 
-                                                     TickResult.GotInitAck,
-                                                     TickResult.GotMsg,
-                                                     TickResult.GotAck,
-                                                     TickResult.Dup,
-                                                    ]:
+    def handle_peer(self, payload: bytes) -> HandleResult:
         data = payload.decode('utf-8').split(":")
         match data:
             case ["init_ack", x_str] if int(x_str) == self.init_x:
                 self.us_ok = True
 
+                print("init_ack")
                 return TickResult.GotInitAck
             case ["init_syn", y_str]:
                 init_ack = self.init_ack_msg(int(y_str))
                 self.raw_send(init_ack)
 
+                print("init_syn")
                 return TickResult.GotInitSyn
             case ["msg", msg_id_str, msg]:
                 msg_id = int(msg_id_str)
@@ -189,6 +205,7 @@ class ReUDP:
                     self.received[msg_id] = msg
                     # should we even store addr in read_list?
                     self.read_list.append((msg, self.peer))
+
                     return TickResult.GotMsg
                 else:
                     return TickResult.Dup
@@ -203,6 +220,7 @@ class ReUDP:
                     case sent_msg, sent_time, acked:
                         if not acked:
                             self.sent[msg_id] = sent_msg, sent_time, True
+
                             return TickResult.GotAck
                         else:
                             return TickResult.Dup
@@ -225,8 +243,11 @@ class ReUDP:
                     self.handle_remote(payload)
                     continue
                 elif addr == self.peer:
-                    match self.handle_peer(payload):
-                        case TickResult.GotAck | TickResult.GotMsg as ret:
+                    ret = self.handle_peer(payload)
+                    register(self.stats, ret)
+
+                    match ret:
+                        case TickResult.GotAck | TickResult.GotMsg:
                             return ret
                         case (
                             TickResult.GotInitSyn
@@ -387,6 +408,7 @@ class Stats:
         self.miss_counter = 0
         self.got_counter = 0
         self.remote_counter = 0
+        self.meta_counter = 0
         self.other_counter = 0
 
         # failure counters
@@ -414,6 +436,12 @@ class Stats:
 
     def got(self):
         self.got_counter += 1
+
+        self.ok_clock += 1
+        self.err_clock = 0
+
+    def meta(self):
+        self.meta_counter += 1
 
         self.ok_clock += 1
         self.err_clock = 0
@@ -464,8 +492,9 @@ class Stats:
         print("===========")
         print(f"miss:\n\t{self.miss_counter}")
         print(f"got:\n\t{self.got_counter}")
-        print(f"other:\n\t{self.other_counter}")
         print(f"remote:\n\t{self.remote_counter}")
+        print(f"meta:\n\t{self.meta_counter}")
+        print(f"other:\n\t{self.other_counter}")
         ms_passed = (time.time_ns() - self.start) / (10 ** 6)
         print(f"time:\n\t{ms_passed} miliseconds")
 
