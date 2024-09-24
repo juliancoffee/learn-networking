@@ -219,7 +219,7 @@ class ReUDP:
                 init_syn = self.syn_msg()
                 self.raw_send(init_syn)
 
-            if (res := timeout_recv(self.s, 2)) is not None:
+            if (res := timeout_recv(self.s, 0.15)) is not None:
                 payload, addr = res
                 if addr == self.remote:
                     self.handle_remote(payload)
