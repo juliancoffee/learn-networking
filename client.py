@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import Optional, Never, overload
+from typing import Optional, Never, overload, assert_never, Literal
 
 import enum
 import random
@@ -12,14 +12,20 @@ import tomllib
 import itertools
 
 # utils
-@overload
-def never_seq(rest: Never) -> Never: pass
+def unreachable(*args, **kwargs) -> Never:
+    if args or kwargs:
+        raise RuntimeError("this shouldn't be reachable:\n{args=}\n{kwargs=}")
+    else:
+        raise RuntimeError("this should be reachable")
 
 @overload
-def never_seq(rest: Sequence[Never]) -> Sequence[Never]: pass
+def assert_never_seq(rest: Never) -> Never: pass
 
-def never_seq(rest):
-    pass
+@overload
+def assert_never_seq(rest: Sequence[Never]) -> Never: pass
+
+def assert_never_seq(rest):
+    unreachable(rest)
 
 Addr = tuple[str, int]
 def timeout_recv(
@@ -38,7 +44,14 @@ def timeout_recv(
 # ReUDP
 ACK_TIMEOUT = 0.3
 class TickResult(enum.Enum):
+    # handshake
+    GotInitAck = enum.auto()
+    GotInitSyn = enum.auto()
+    # messages
     GotMsg = enum.auto()
+    GotAck = enum.auto()
+    # meta
+    Dup = enum.auto()
     Timeout = enum.auto()
 
 class ReUDP:
@@ -68,7 +81,7 @@ class ReUDP:
 
         # switches
         self.s = s
-        self.peer: Optional[Addr] = None
+        self.peer = self.first_peer_fetch()
         self.us_ok = False
 
         # state
@@ -79,13 +92,18 @@ class ReUDP:
         self.last_sent_id = 0
         self.sent: dict[int, tuple[str, float, bool]] = {}
 
+        # start a handshake
+        init_syn = self.syn_msg()
+        self.raw_send(init_syn)
+
+
     def __enter__(self):
         return self
 
     def __exit__(self, *args, **kwargs):
         self.stats.print_results()
 
-    def _first_peer_fetch(self) -> Addr:
+    def first_peer_fetch(self) -> Addr:
         return first_peer_fetch(
             self.s,
             self.our_id,
@@ -93,11 +111,16 @@ class ReUDP:
             self.remote,
         )
 
+    def try_to_reconnect(self) -> None:
+        self.s = try_to_reconnect(
+            self.s,
+            self.our_id,
+            self.peer_id,
+            self.remote,
+        )
+
     def raw_send(self, msg: bytes) -> None:
-        if self.peer is None:
-            breakpoint()
-        else:
-            self.s.sendto(msg, self.peer)
+        self.s.sendto(msg, self.peer)
 
     def syn_msg(self) -> bytes:
         return f"init_syn:{self.init_x}".encode('utf-8')
@@ -114,7 +137,7 @@ class ReUDP:
     def ack_msg(i: int) -> bytes:
         return f"ack:{i}".encode('utf-8')
 
-    def resend_lost(self) -> None:
+    def try_resend_lost(self) -> None:
         to_resend = []
         for (i, (_, time_sent, is_done)) in self.sent.items():
             if is_done:
@@ -134,12 +157,62 @@ class ReUDP:
         self.peer = peer
         self.stats.remote()
 
-    def tick(self) -> TickResult:
-        if self.peer is None:
-            self.peer = self._first_peer_fetch()
-            self.stats.reset()
+    def handle_peer(self, payload: bytes) -> Literal[TickResult.GotInitSyn, 
+                                                     TickResult.GotInitAck,
+                                                     TickResult.GotMsg,
+                                                     TickResult.GotAck,
+                                                     TickResult.Dup,
+                                                    ]:
+        data = payload.decode('utf-8').split(":")
+        match data:
+            case ["init_ack", x_str] if int(x_str) == self.init_x:
+                self.us_ok = True
 
-        for _ in range(10):
+                return TickResult.GotInitAck
+            case ["init_syn", y_str]:
+                init_ack = self.init_ack_msg(int(y_str))
+                self.raw_send(init_ack)
+
+                return TickResult.GotInitSyn
+            case ["msg", msg_id_str, msg]:
+                msg_id = int(msg_id_str)
+                ack = self.ack_msg(msg_id)
+                self.raw_send(ack)
+
+                if msg_id not in self.received:
+                    # should we store addr in received list?
+                    #
+                    # gosh, TCP is really lucky to only have only one
+                    # connection per socket pair
+                    self.received[msg_id] = msg
+                    # should we even store addr in read_list?
+                    self.read_list.append((msg, self.peer))
+                    return TickResult.GotMsg
+                else:
+                    return TickResult.Dup
+            case ["ack", msg_id_str]:
+                msg_id = int(msg_id_str)
+                match self.sent.get(msg_id, None):
+                    case None:
+                        # I don't think this is possible but better be safe
+                        # than sorry
+                        breakpoint()
+                        unreachable()
+                    case sent_msg, sent_time, acked:
+                        if not acked:
+                            self.sent[msg_id] = sent_msg, sent_time, True
+                            return TickResult.GotAck
+                        else:
+                            return TickResult.Dup
+                    case rest:
+                        breakpoint()
+                        assert_never_seq(rest)
+            case _:
+                breakpoint()
+                raise RuntimeError(f"unexpected message: {payload!r}")
+
+    def tick(self, *, attempts: int = 10) -> TickResult:
+        for _ in range(attempts):
             if not self.us_ok:
                 init_syn = self.syn_msg()
                 self.raw_send(init_syn)
@@ -149,55 +222,29 @@ class ReUDP:
                 if addr == self.remote:
                     self.handle_remote(payload)
                     continue
+                elif addr == self.peer:
+                    match self.handle_peer(payload):
+                        case TickResult.GotAck | TickResult.GotMsg as ret:
+                            return ret
+                        case (
+                            TickResult.GotInitSyn
+                            | TickResult.GotInitAck
+                            | TickResult.Dup):
+                            continue
+                        case rest:
+                            assert_never_seq(rest)
+                else:
+                    print(f"unknown {addr}: {payload!r}")
+                    self.stats.other()
 
-                data = payload.decode('utf-8').split(":")
-                match data:
-                    case ["init_ack", x_str] if int(x_str) == self.init_x:
-                        self.us_ok = True
-                    case ["init_syn", y_str]:
-                        init_ack = self.init_ack_msg(int(y_str))
-                        self.raw_send(init_ack)
-                    case ["msg", msg_id_str, msg]:
-                        msg_id = int(msg_id_str)
-                        ack = self.ack_msg(msg_id)
-                        self.raw_send(ack)
-
-                        if msg_id not in self.received:
-                            # should we store addr in received list?
-                            #
-                            # gosh, TCP is really lucky to only have only one
-                            # connection per socket pair
-                            self.received[msg_id] = msg
-                            self.read_list.append((msg, addr))
-                            return TickResult.GotMsg
-                    case ["ack", msg_id_str]:
-                        msg_id = int(msg_id_str)
-                        match self.sent.get(msg_id, None):
-                            case None:
-                                # I don't think this is possible but better be
-                                # safe than sorry
-                                breakpoint()
-                            case sent_msg, sent_time, sent_acked:
-                                if not sent_acked:
-                                    self.sent[msg_id] = sent_msg, sent_time, True
-                            case rest:
-                                never_seq(rest)
-                                breakpoint()
-                    case _:
-                        breakpoint()
             else:
                 self.stats.miss()
 
-            self.resend_lost()
+            self.try_resend_lost()
+        else:
+            self.try_to_reconnect()
 
-        self.s = try_to_reconnect(
-            self.s,
-            self.our_id,
-            self.peer_id,
-            self.remote,
-        )
-
-        return TickResult.Timeout
+            return TickResult.Timeout
 
     def get(self) -> Optional[tuple[str, Addr]]:
         if self.read_list:
@@ -212,7 +259,12 @@ class ReUDP:
             # poll until receive the message
             while self.tick() != TickResult.GotMsg:
                 pass
-            return self.get()
+            res = self.get()
+            if res is None:
+                breakpoint()
+                raise RuntimeError("got none")
+            else:
+                return res
 
     def send(self, msg: str) -> None:
         i = self.last_sent_id + 1
