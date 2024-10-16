@@ -780,7 +780,7 @@ def main_loop2(
                 print(f"<_> on turn {turn} they picked: {their_pick}")
                 if (won := we_won(pick, their_pick)) is not None:
                     if won:
-                        print("we wont :P")
+                        print("we won!")
                     else:
                         print("we lost :(")
                     break
