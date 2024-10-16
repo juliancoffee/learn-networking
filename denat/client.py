@@ -322,9 +322,9 @@ class ReUDP:
                 return res
 
     def send(self, msg: str) -> None:
-        self.last_send_id += 1
+        self.last_sent_id += 1
 
-        i = self.last_send_i
+        i = self.last_sent_id
 
         self.raw_send(self.packed_msg(i, msg))
         self.sent[i] = msg, time.monotonic(), False
