@@ -736,10 +736,17 @@ def main_loop2(
     peer_id: str,
     remote: Addr,
 ) -> None:
+    def next_pick(turn: int) -> str:
+        pick = random.choice(["paper", "rock", "scissors"])
+        print(f"<*> on turn {turn} we picked: {pick}")
+        return pick
+
     with ReUDP(s, our_id, peer_id, remote) as tunnel:
-        tunnel.send("hi")
-        msg, addr = tunnel.get_blocking()
-        print(msg)
+        for turn in range(10):
+            pick = next_pick(turn)
+            tunnel.send(pick)
+            their_pick, addr = tunnel.get_blocking()
+            print(f"<_> on turn {turn} they picked: {their_pick}")
 
 def main_loop(
     s: socket.socket,
