@@ -105,6 +105,7 @@ class ReUDP:
         self.end = False
 
         # state
+        self.reconnects = 0
         self.stats = Stats()
         self.received: dict[int, str] = {}
         self.read_stack: list[tuple[str, Addr]] = []
@@ -138,6 +139,9 @@ class ReUDP:
         )
 
     def try_to_reconnect(self) -> None:
+        self.reconnects += 1
+        if self.reconnects > 5:
+            raise RuntimeError("i'm tired")
         if self.end:
             return
 
@@ -183,7 +187,7 @@ class ReUDP:
 
     def handle_remote(self, payload: bytes) -> None:
         _, peer = parse_server_msg(payload)
-        print(f"new peer: {peer}")
+        #print(f"new peer: {peer}")
         self.peer = peer
 
     def handle_peer(self, payload: bytes) -> HandleResult:
@@ -192,13 +196,11 @@ class ReUDP:
             case ["init_ack", x_str] if int(x_str) == self.init_x:
                 self.us_ok = True
 
-                print("init_ack")
                 return TickResult.GotInitAck
             case ["init_syn", y_str]:
                 init_ack = self.init_ack_msg(int(y_str))
                 self.raw_send(init_ack)
 
-                print("init_syn")
                 return TickResult.GotInitSyn
             case ["msg", msg_id_str, msg]:
                 msg_id = int(msg_id_str)
