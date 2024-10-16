@@ -107,7 +107,7 @@ class ReUDP:
         # state
         self.stats = Stats()
         self.received: dict[int, str] = {}
-        self.read_list: list[tuple[str, Addr]] = []
+        self.read_stack: list[tuple[str, Addr]] = []
 
         self.last_sent_id = 0
         self.sent: dict[int, tuple[str, float, bool]] = {}
@@ -208,8 +208,8 @@ class ReUDP:
                     # gosh, TCP is really lucky to only have only one
                     # connection per socket pair
                     self.received[msg_id] = msg
-                    # should we even store addr in read_list?
-                    self.read_list.append((msg, self.peer))
+                    # should we even store addr in read_stack?
+                    self.read_stack.append((msg, self.peer))
 
                     return TickResult.GotMsg
                 else:
@@ -262,6 +262,12 @@ class ReUDP:
                 self.stats.other()
                 return None
         else:
+            # NOTE: there's a high chance that this won't fire if
+            # we didn't receive any "init_ack", because the packet got lost,
+            # but then we receive other packets, even while being in
+            # `not self.us_ok`
+            #
+            # who cares though?
             if not self.us_ok:
                 init_syn = self.syn_msg()
                 self.raw_send(init_syn)
@@ -280,14 +286,14 @@ class ReUDP:
             return TickResult.Timeout
 
     def get(self) -> Optional[tuple[str, Addr]]:
-        if self.read_list:
-            return self.read_list.pop()
+        if self.read_stack:
+            return self.read_stack.pop()
         else:
             return None
 
     def get_blocking(self) -> tuple[str, Addr]:
-        if self.read_list:
-            return self.read_list.pop()
+        if self.read_stack:
+            return self.read_stack.pop()
         else:
             # poll until receive the message
             while self.tick() != TickResult.GotMsg:
