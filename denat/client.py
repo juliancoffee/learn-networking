@@ -122,9 +122,12 @@ class ReUDP:
 
     def __exit__(self, *args, **kwargs):
         self.end = True
+        # tick one more time, to maybe send ack back
         self.tick()
+        # exit from the remote server mapping
+        disconnect(self.s, self.our_id, self.peer_id, self.remote)
+        # print stats, because why not :3
         self.stats.print_results()
-        # TODO: we should probably call disconnect() here as well
 
     def first_peer_fetch(self) -> Addr:
         return first_peer_fetch(
@@ -383,11 +386,10 @@ def disconnect(
     s: socket.socket,
     our_id: str,
     peer_id: str,
-    remote_host: str,
-    remote_port: int,
+    remote: Addr,
 ) -> None:
     req = f"EXIT#{our_id}@{peer_id}"
-    s.sendto(req.encode('utf-8'), (remote_host, remote_port))
+    s.sendto(req.encode('utf-8'), remote)
     print("<> requested exit")
 
 
@@ -752,6 +754,7 @@ def main_loop(
         play_loop2(stats, s, our_id, peer_id, peer, remote)
     finally:
         stats.print_results()
+        disconnect(s, our_id, peer_id, remote)
 
 def main() -> None:
     try:
@@ -780,21 +783,12 @@ def main() -> None:
     s = prepare_socket()
     print(f"<> good, ready to connect to {remote_host}:{remote_port}")
 
-    try:
-        main_loop2(
-            s,
-            our_id,
-            peer_id,
-            remote,
-        )
-    finally:
-        disconnect(
-            s,
-            our_id,
-            peer_id,
-            remote_host,
-            remote_port,
-        )
+    main_loop2(
+        s,
+        our_id,
+        peer_id,
+        remote,
+    )
 
 if __name__ == "__main__":
     main()
