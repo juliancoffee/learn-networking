@@ -155,13 +155,13 @@ class ReUDP:
         )
 
     def raw_send(self, msg: bytes) -> None:
-        print(f"-> {msg!r}")
+        #print(f"-> {msg!r}")
         self.s.sendto(msg, self.peer)
 
     def raw_get(self) -> Optional[tuple[bytes, Addr]]:
         if (res := timeout_recv(self.s, 0.15)) is not None:
-            data, addr = res
-            print(f"<- {data!r}")
+            #data, addr = res
+            #print(f"<- {data!r}")
             return res
         else:
             return None
