@@ -155,7 +155,16 @@ class ReUDP:
         )
 
     def raw_send(self, msg: bytes) -> None:
+        print(msg)
         self.s.sendto(msg, self.peer)
+
+    def raw_get(self) -> Optional[tuple[bytes, Addr]]:
+        if (res := timeout_recv(self.s, 0.15)) is not None:
+            data, addr = res
+            print(data)
+            return res
+        else:
+            return None
 
     def syn_msg(self) -> bytes:
         return f"init_syn:{self.init_x}".encode('utf-8')
@@ -193,7 +202,6 @@ class ReUDP:
 
     def handle_peer(self, payload: bytes) -> HandleResult:
         data = payload.decode('utf-8').split(":")
-        print(data)
         match data:
             case ["init_ack", x_str] if int(x_str) == self.init_x:
                 self.us_ok = True
@@ -243,8 +251,9 @@ class ReUDP:
                 breakpoint()
                 raise RuntimeError(f"unexpected message: {payload!r}")
 
+
     def check_messages(self) -> Optional[TickResult]:
-        if (res := timeout_recv(self.s, 0.15)) is not None:
+        if (res := self.raw_get()) is not None:
             payload, addr = res
             if addr == self.remote:
                 self.handle_remote(payload)
