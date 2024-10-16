@@ -290,7 +290,7 @@ class ReUDP:
             self.stats.miss()
             return None
 
-    def tick(self, *, attempts: int = 30) -> TickResult:
+    def tick(self, *, attempts: int = 10) -> TickResult:
         for _ in range(attempts):
             ret = self.check_messages()
             self.try_resend_lost()
