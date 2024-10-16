@@ -139,11 +139,12 @@ class ReUDP:
         )
 
     def try_to_reconnect(self) -> None:
+        if self.end:
+            return
+
         self.reconnects += 1
         if self.reconnects > 5:
             raise RuntimeError("i'm tired")
-        if self.end:
-            return
 
         print("<> connection has failed, trying to reconnect")
         self.s = try_to_reconnect(
@@ -393,7 +394,6 @@ def disconnect(
     req = f"EXIT#{our_id}@{peer_id}"
     s.sendto(req.encode('utf-8'), remote)
     print("<> requested exit")
-
 
 
 def prepare_socket(port: Optional[int] = None) -> socket.socket:
