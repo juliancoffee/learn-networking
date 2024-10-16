@@ -193,6 +193,7 @@ class ReUDP:
 
     def handle_peer(self, payload: bytes) -> HandleResult:
         data = payload.decode('utf-8').split(":")
+        print(data)
         match data:
             case ["init_ack", x_str] if int(x_str) == self.init_x:
                 self.us_ok = True
