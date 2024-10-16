@@ -750,17 +750,40 @@ def main_loop2(
     peer_id: str,
     remote: Addr,
 ) -> None:
+    def we_won(our_pick: str, their_pick: str) -> Optional[bool]:
+        if our_pick == their_pick:
+            return None
+        else:
+            match (our_pick, their_pick):
+                case ["rock", "scissors"]:
+                    return True
+                case ["paper", "rock"]:
+                    return True
+                case ["scissors", "paper"]:
+                    return True
+                case _:
+                    return False
+
+
     def next_pick(turn: int) -> str:
         pick = random.choice(["paper", "rock", "scissors"])
         print(f"<*> on turn {turn} we picked: {pick}")
         return pick
 
     with ReUDP(s, our_id, peer_id, remote) as tunnel:
-        for turn in range(10):
-            pick = next_pick(turn)
-            tunnel.send(pick)
-            their_pick, addr = tunnel.get_blocking()
-            print(f"<_> on turn {turn} they picked: {their_pick}")
+        for game in range(3):
+            print(f"<> it's a {game}th game")
+            for turn in itertools.count():
+                pick = next_pick(turn)
+                tunnel.send(pick)
+                their_pick, addr = tunnel.get_blocking()
+                print(f"<_> on turn {turn} they picked: {their_pick}")
+                if (won := we_won(pick, their_pick)) is not None:
+                    if won:
+                        print("we wont :P")
+                    else:
+                        print("we lost :(")
+                    break
 
 def main_loop(
     s: socket.socket,
