@@ -108,7 +108,7 @@ class ReUDP:
         self.reconnects = 0
         self.stats = Stats()
         self.received: dict[int, str] = {}
-        self.read_stack: list[tuple[str, Addr]] = []
+        self.read_queue: list[tuple[str, Addr]] = []
 
         self.last_sent_id = 0
         self.sent: dict[int, tuple[str, float, bool]] = {}
@@ -223,8 +223,8 @@ class ReUDP:
                     # gosh, TCP is really lucky to only have only one
                     # connection per socket pair
                     self.received[msg_id] = msg
-                    # should we even store addr in read_stack?
-                    self.read_stack.append((msg, self.peer))
+                    # should we even store addr in read_queue?
+                    self.read_queue.append((msg, self.peer))
 
                     return TickResult.GotMsg
                 else:
@@ -302,14 +302,14 @@ class ReUDP:
             return TickResult.Timeout
 
     def get(self) -> Optional[tuple[str, Addr]]:
-        if self.read_stack:
-            return self.read_stack.pop()
+        if self.read_queue:
+            return self.read_queue.pop(0)
         else:
             return None
 
     def get_blocking(self) -> tuple[str, Addr]:
-        if self.read_stack:
-            return self.read_stack.pop()
+        if self.read_queue:
+            return self.read_queue.pop(0)
         else:
             # poll until receive the message
             while self.tick() != TickResult.GotMsg:
