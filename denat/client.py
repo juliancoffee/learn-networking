@@ -792,8 +792,8 @@ def main_loop2(
         return pick
 
     with ReUDP(s, our_id, peer_id, remote) as tunnel:
-        for game in range(3):
-            print(f"<> it's a {game}th game")
+        for game in range(5):
+            print(f"<> it's a {game+1}th game")
             for turn in itertools.count():
                 pick = next_pick(turn)
                 tunnel.send(pick)
