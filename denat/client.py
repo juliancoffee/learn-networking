@@ -44,7 +44,6 @@ def timeout_recv(
 # end of utils
 
 # ReUDP
-ACK_TIMEOUT = 0.3
 class TickResult(enum.Enum):
     # handshake
     GotInitAck = enum.auto()
@@ -53,7 +52,7 @@ class TickResult(enum.Enum):
     GotMsg = enum.auto()
     GotAck = enum.auto()
     # meta
-    Dup = enum.auto()
+    DupOrEarly = enum.auto()
     Timeout = enum.auto()
 
 HandleResult = Literal[
@@ -61,7 +60,7 @@ HandleResult = Literal[
         TickResult.GotInitAck,
         TickResult.GotMsg,
         TickResult.GotAck,
-        TickResult.Dup,
+        TickResult.DupOrEarly,
     ]
 
 def register(stats: Stats, res: HandleResult) -> None:
@@ -70,7 +69,7 @@ def register(stats: Stats, res: HandleResult) -> None:
             stats.meta()
         case TickResult.GotMsg | TickResult.GotAck:
             stats.got()
-        case TickResult.Dup:
+        case TickResult.DupOrEarly:
             stats.other()
 
 class ReUDP:
@@ -78,9 +77,7 @@ class ReUDP:
 
     Guarantees:
         - All messages will be delivered.
-
-    But:
-        - Messages may come out-of-order.
+        - Message should arrive in order.
     """
 
     def __init__(
@@ -107,10 +104,12 @@ class ReUDP:
         # state
         self.reconnects = 0
         self.stats = Stats()
+
+        self.last_received_id = -1
         self.received: dict[int, str] = {}
         self.read_queue: list[tuple[str, Addr]] = []
 
-        self.last_sent_id = 0
+        self.last_sent_id = itertools.count()
         self.sent: dict[int, tuple[str, float, bool]] = {}
 
         # start a handshake
@@ -182,6 +181,8 @@ class ReUDP:
         return f"ack:{i}".encode('utf-8')
 
     def try_resend_lost(self) -> None:
+        ACK_TIMEOUT = 0.1
+
         to_resend = []
         for (i, (_, time_sent, is_done)) in self.sent.items():
             if is_done:
@@ -214,27 +215,41 @@ class ReUDP:
                 return TickResult.GotInitSyn
             case ["msg", msg_id_str, msg]:
                 msg_id = int(msg_id_str)
+
+                expected_id = self.last_received_id + 1
+                if msg_id > expected_id:
+                    # no ack for you sommry, you're too early
+                    #
+                    # realistically speaking, we could have a queue for early
+                    # birds, so that you don't need to resend the message, but
+                    # idk, let's see how it will work without it
+                    return TickResult.DupOrEarly
+
+                # otherwise, acknowledge
                 ack = self.ack_msg(msg_id)
                 self.raw_send(ack)
 
+                # oh, you've arrived, we expected you
                 if msg_id not in self.received:
-                    # should we store addr in received list?
-                    #
-                    # gosh, TCP is really lucky to only have only one
-                    # connection per socket pair
                     self.received[msg_id] = msg
-                    # should we even store addr in read_queue?
-                    self.read_queue.append((msg, self.peer))
+                    self.last_received_id = msg_id
 
+                    # should we store addr in read_queue? probably not
+                    # but hell, I don't want to think about it right now
+                    self.read_queue.append((msg, self.peer))
                     return TickResult.GotMsg
                 else:
-                    return TickResult.Dup
+                    return TickResult.DupOrEarly
             case ["ack", msg_id_str]:
                 msg_id = int(msg_id_str)
                 match self.sent.get(msg_id, None):
                     case None:
-                        # I don't think this is possible but better be safe
-                        # than sorry
+                        # sending ack to the message we haven't sent is the
+                        # error on the other side
+                        #
+                        # i'll leave a breakpoint just in case, but if it was
+                        # a "real" program, we'd probably ignore it, because
+                        # that's not our responsibility
                         breakpoint()
                         unreachable()
                     case sent_msg, sent_time, acked:
@@ -243,7 +258,7 @@ class ReUDP:
 
                             return TickResult.GotAck
                         else:
-                            return TickResult.Dup
+                            return TickResult.DupOrEarly
                     case rest:
                         breakpoint()
                         assert_never_seq(rest)
@@ -269,7 +284,7 @@ class ReUDP:
                     case (
                         TickResult.GotInitSyn
                         | TickResult.GotInitAck
-                        | TickResult.Dup):
+                        | TickResult.DupOrEarly):
                         return None
                     case rest:
                         assert_never_seq(rest)
@@ -284,6 +299,14 @@ class ReUDP:
             # `not self.us_ok`
             #
             # who cares though?
+            #
+            # counter-point, if we don't care, do we really need this stuff?
+            #
+            # my thinking is that it's needed in TCP, because you have
+            # connect()/accept() step so that's why they need this
+            #
+            # we don't have it, and frankly our connection lifecycle is more
+            # dependent on deNAT reliability than on connect/close
             if not self.us_ok:
                 init_syn = self.syn_msg()
                 self.raw_send(init_syn)
@@ -322,9 +345,7 @@ class ReUDP:
                 return res
 
     def send(self, msg: str) -> None:
-        self.last_sent_id += 1
-
-        i = self.last_sent_id
+        i = next(self.last_sent_id)
 
         self.raw_send(self.packed_msg(i, msg))
         self.sent[i] = msg, time.monotonic(), False
