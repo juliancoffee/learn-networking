@@ -17,7 +17,6 @@ import logging
 # utils
 logging.basicConfig()
 logger = logging.getLogger(__name__)
-
 def unreachable(*args, **kwargs) -> Never:
     if args or kwargs:
         raise RuntimeError("this shouldn't be reachable:\n{args=}\n{kwargs=}")
@@ -386,15 +385,6 @@ def parse_server_msg(msg: bytes) -> tuple[Addr, Addr]:
 
     return our, peer
 
-def same_line_print(i: int, msg: str, *args, **kwargs) -> None:
-    # padding in case msg len changes
-    padding = " " * 20
-    if i == 0:
-        print(f"{msg}" + padding, *args, **kwargs)
-    else:
-        to_prev_line = "\x1b[1A"
-        print(f"{to_prev_line}{msg}" + padding, *args, **kwargs)
-
 def first_peer_fetch(
     s: socket.socket,
     our_id: str,
@@ -653,129 +643,6 @@ def establish_connection2(
     logger.info("<> connection is probably stable")
     return s, peer
 
-
-def next_pick(turn: int) -> str:
-    pick = random.choice(["paper", "rock", "scissors"])
-    print(f"<*> on turn {turn} we picked: {pick}")
-    return pick
-
-class State:
-    turn: int
-    us_ok: bool
-    they_ok: bool
-
-    def __init__(self):
-        self.turn = 0
-        self.us_ok = False
-        self.they_ok = False
-
-    def is_ready(self) -> bool:
-        return self.us_ok and self.they_ok
-
-    def next_turn(self):
-        self.turn += 1
-        self.us_ok = False
-        self.they_ok = False
-
-def play_loop2(
-    stats: Stats,
-    s: socket.socket,
-    our_id: str,
-    peer_id: str,
-    peer: Addr,
-    remote: Addr,
-) -> None:
-    def turn_msg(turn: int, pick: str) -> bytes:
-        return f"go:{turn}:{pick}".encode('utf-8')
-
-    def ack_msg(turn: int) -> bytes:
-        return f"ack:{turn}".encode('utf-8')
-
-    state = State()
-    their_picks: dict[int, str] = {}
-
-    pick = None
-    while state.turn < 10:
-        pick = next_pick(state.turn)
-        s.sendto(turn_msg(state.turn, pick), peer)
-
-        while True:
-            if stats.failed_enough(10):
-                logger.error("<> failure, trying to reconnect")
-                s = try_to_reconnect(s, our_id, peer_id, remote)
-
-            if (res := timeout_recv(s, timeout=0.15)) is not None:
-                msg, addr = res
-                if addr != peer:
-                    if addr == remote:
-                        _, peer = parse_server_msg(msg)
-                        logger.debug(f"new peer: {peer}")
-                        stats.remote()
-                    else:
-                        stats.other()
-                        # idk what to do in this case
-                        # it's possible that our peer will decide to change
-                        # its port and they'll get the response from remote server
-                        # and send the message to us sooner than we'll get the
-                        # message from the remote
-                        #
-                        # but I think this situation will fix itself in the end
-                        # will add breakpoint anyway
-                        breakpoint()
-                    break
-
-                data = msg.decode('utf-8').split(":")
-                match data:
-                    case ["ack", turn_str] if int(turn_str) == state.turn:
-                        stats.got()
-
-                        state.us_ok = True
-                        if state.is_ready():
-                            state.next_turn()
-                            break
-                    case ["go", turn_str, their_pick]:
-                        print(
-                            "<-> on turn {} opponent picked {}"
-                              .format(turn_str, their_pick)
-                        )
-                        their_turn = int(turn_str)
-                        s.sendto(ack_msg(their_turn), peer)
-
-                        if their_turn not in their_picks:
-                            stats.got()
-
-                            their_picks[their_turn] = their_pick
-                            if their_turn == state.turn:
-                                state.they_ok = True
-                                if state.is_ready():
-                                    state.next_turn()
-                                    break
-                            else:
-                                # this shouldn't be hit
-                                breakpoint()
-                        else:
-                            stats.other()
-                    case ["init_syn", y_str]:
-                        y = int(y_str)
-                        init_ack_msg = f"init_ack:{y}".encode('utf-8')
-                        s.sendto(init_ack_msg, peer)
-
-                        stats.other()
-                    case ["init_ack", y_str]:
-                        # if we can receive init_syn after the fact
-                        # surefly we can expect init_ack after the fact
-                        stats.other()
-                    case ["ack", turn_str] if int(turn_str) < state.turn:
-                        # i'm not exactly sure how this one happened,
-                        # but seems like someone sent slightly more messages
-                        # than needed
-                        stats.other()
-                    case _:
-                        breakpoint()
-            else:
-                stats.miss()
-                s.sendto(turn_msg(state.turn, pick), peer)
-
 def main_loop2(
     s: socket.socket,
     our_id: str,
@@ -816,21 +683,6 @@ def main_loop2(
                     else:
                         print("we lost :(")
                     break
-
-def main_loop(
-    s: socket.socket,
-    our_id: str,
-    peer_id: str,
-    remote: Addr,
-) -> None:
-    stats = Stats()
-    # establish a connection
-    try:
-        s, peer = establish_connection2(stats, s, our_id, peer_id, remote)
-        play_loop2(stats, s, our_id, peer_id, peer, remote)
-    finally:
-        stats.print_results()
-        disconnect(s, our_id, peer_id, remote)
 
 def main() -> None:
     logger.setLevel(logging.INFO)
