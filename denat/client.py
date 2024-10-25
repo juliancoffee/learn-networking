@@ -126,6 +126,9 @@ class ReUDP:
         self.tick()
         # exit from the remote server mapping
         disconnect(self.s, self.our_id, self.peer_id, self.remote)
+
+        while self.try_resend_lost(0.05) != 0:
+            pass
         # print stats, because why not :3
         self.stats.print_results()
 
@@ -180,14 +183,12 @@ class ReUDP:
     def ack_msg(i: int) -> bytes:
         return f"ack:{i}".encode('utf-8')
 
-    def try_resend_lost(self) -> None:
-        ACK_TIMEOUT = 0.1
-
+    def try_resend_lost(self, timeout = 0.1) -> int:
         to_resend = []
         for (i, (_, time_sent, is_done)) in self.sent.items():
             if is_done:
                 continue
-            if time.monotonic() - time_sent < ACK_TIMEOUT:
+            if time.monotonic() - time_sent < timeout:
                 continue
             to_resend.append(i)
 
@@ -195,6 +196,8 @@ class ReUDP:
             msg, _, _ = self.sent[i]
             self.raw_send(self.packed_msg(i, msg))
             self.sent[i] = msg, time.monotonic(), False
+
+        return len(to_resend)
 
     def handle_remote(self, payload: bytes) -> None:
         _, peer = parse_server_msg(payload)
