@@ -128,6 +128,7 @@ class ReUDP:
     def __exit__(self, *args, **kwargs):
         self.end = True
         # exit from the remote server mapping
+        # NOTE: using UDP, packet may or may not be delivered
         disconnect(self.s, self.our_id, self.peer_id, self.remote)
 
         # try to ensure that all the messages are sent at the end
