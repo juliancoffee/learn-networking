@@ -12,8 +12,12 @@ import select
 import sys
 import tomllib
 import itertools
+import logging
 
 # utils
+logging.basicConfig()
+logger = logging.getLogger(__name__)
+
 def unreachable(*args, **kwargs) -> Never:
     if args or kwargs:
         raise RuntimeError("this shouldn't be reachable:\n{args=}\n{kwargs=}")
@@ -153,7 +157,7 @@ class ReUDP:
         if self.reconnects > 5:
             raise RuntimeError("i'm tired")
 
-        print("<> connection has failed, trying to reconnect")
+        logger.error("<> connection has failed, trying to reconnect")
         self.s = try_to_reconnect(
             self.s,
             self.our_id,
@@ -162,13 +166,13 @@ class ReUDP:
         )
 
     def raw_send(self, msg: bytes) -> None:
-        #print(f"-> {msg!r}")
+        logger.debug(f"-> {msg!r}")
         self.s.sendto(msg, self.peer)
 
     def raw_get(self, *, timeout: float = 0.15) -> Optional[tuple[bytes, Addr]]:
         if (res := timeout_recv(self.s, timeout=timeout)) is not None:
-            #data, addr = res
-            #print(f"<- {data!r}")
+            data, addr = res
+            logger.debug(f"<- {data!r}")
             return res
         else:
             return None
@@ -206,7 +210,7 @@ class ReUDP:
 
     def handle_remote(self, payload: bytes) -> None:
         _, peer = parse_server_msg(payload)
-        #print(f"new peer: {peer}")
+        logger.debug(f"new peer: {peer}")
         self.peer = peer
 
     def handle_peer(self, payload: bytes) -> HandleResult:
@@ -297,7 +301,7 @@ class ReUDP:
                     case rest:
                         assert_never_seq(rest)
             else:
-                print(f"unknown {addr}: {payload!r}")
+                logger.error(f"unknown {addr}: {payload!r}")
                 self.stats.other()
                 return None
         else:
@@ -384,7 +388,7 @@ def parse_server_msg(msg: bytes) -> tuple[Addr, Addr]:
 
 def same_line_print(i: int, msg: str, *args, **kwargs) -> None:
     # padding in case msg len changes
-    padding = " " * 10
+    padding = " " * 20
     if i == 0:
         print(f"{msg}" + padding, *args, **kwargs)
     else:
@@ -402,8 +406,7 @@ def first_peer_fetch(
     for i in itertools.count():
         # declare that we exist
         make_peer_req(s, our_id, peer_id, remote)
-        numbering = '' if i == 0 else f'#{i + 1}'
-        same_line_print(i, f"<> requesting the connection {numbering}")
+        logger.info(f"<> requesting the connection #{i + 1}")
 
         # check the mailbox
         if (res := timeout_recv(s, timeout=2)) is not None:
@@ -420,8 +423,8 @@ def first_peer_fetch(
     our, peer = parse_server_msg(server_msg)
 
     # print response
-    print(f"<> server says we are {our[0]}:{our[1]}")
-    print(f"<> server says our peer is {peer[0]}:{peer[1]}")
+    logger.info(f"<> server says we are {our[0]}:{our[1]}")
+    logger.info(f"<> server says our peer is {peer[0]}:{peer[1]}")
 
     # finally return response
     return peer
@@ -434,29 +437,29 @@ def disconnect(
 ) -> None:
     req = f"EXIT#{our_id}@{peer_id}"
     s.sendto(req.encode('utf-8'), remote)
-    print("<> requested exit")
+    logger.info("<> requested exit")
 
 
 def prepare_socket(port: Optional[int] = None) -> socket.socket:
     if port is None:
         try:
             port = int(sys.argv[1])
-            print(f"<> using src port: {port}")
+            logger.info(f"<> using src port: {port}")
         except (ValueError, IndexError):
             port = 9_990
-            print("<warn> couldn't get the src port from arguments."
+            logger.warning("<> couldn't get the src port from arguments."
                   f" Using default src port: {port}")
 
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     while True:
         try:
             host = "0.0.0.0"
-            print(f"<> binding to {host}:{port}")
+            logger.info(f"<> binding to {host}:{port}")
             s.bind((host, port))
             break
         except OSError as e:
             if e.errno == 48:
-                print(f"<err> {port=} is taken, trying the next one")
+                logger.error(f"<err> {port=} is taken, trying the next one")
                 port += 1
             else:
                 raise e
@@ -593,7 +596,7 @@ def establish_connection2(
     def ack_msg(y: int) -> bytes:
         return f"init_ack:{y}".encode('utf-8')
 
-    print("<> initiating connection")
+    logger.info("<> initiating connection")
     peer = first_peer_fetch(s, our_id, peer_id, remote)
     stats.reset()
 
@@ -607,7 +610,7 @@ def establish_connection2(
     # start the main stage
     while (not us_ok) or (not them_maybe_ok):
         if stats.failed_enough(50):
-            print("can't establish connection, I give up")
+            logger.error("can't establish connection, I give up")
             sys.exit(1)
 
         if stats.failed_enough(10):
@@ -618,7 +621,7 @@ def establish_connection2(
             if addr != peer:
                 if addr == remote:
                     _, peer = parse_server_msg(msg)
-                    print(f"new peer: {peer}")
+                    logger.debug(f"new peer: {peer}")
                     stats.remote()
                 else:
                     stats.other()
@@ -647,7 +650,7 @@ def establish_connection2(
             if not us_ok:
                 s.sendto(syn_msg(init_x), peer)
 
-    print("<> connection is probably stable")
+    logger.info("<> connection is probably stable")
     return s, peer
 
 
@@ -698,7 +701,7 @@ def play_loop2(
 
         while True:
             if stats.failed_enough(10):
-                print("<> failure, trying to reconnect")
+                logger.error("<> failure, trying to reconnect")
                 s = try_to_reconnect(s, our_id, peer_id, remote)
 
             if (res := timeout_recv(s, timeout=0.15)) is not None:
@@ -706,7 +709,7 @@ def play_loop2(
                 if addr != peer:
                     if addr == remote:
                         _, peer = parse_server_msg(msg)
-                        print(f"new peer: {peer}")
+                        logger.debug(f"new peer: {peer}")
                         stats.remote()
                     else:
                         stats.other()
@@ -830,6 +833,7 @@ def main_loop(
         disconnect(s, our_id, peer_id, remote)
 
 def main() -> None:
+    logger.setLevel(logging.INFO)
     try:
         with open("config.toml", "rb") as f:
             data = tomllib.load(f)
@@ -841,20 +845,20 @@ def main() -> None:
         our_id = data["our_id"]
         if len(sys.argv) >= 3:
             our_id = sys.argv[2]
-            print(f"<> rewrite our_id with {our_id}")
+            logger.info(f"<> rewrite our_id with {our_id}")
 
         peer_id = data["peer_id"]
         if len(sys.argv) >= 4:
             peer_id = sys.argv[3]
-            print(f"<> rewrite peer_id with {peer_id}")
+            logger.info(f"<> rewrite peer_id with {peer_id}")
 
     except Exception as e:
-        print("couldn't read the config.toml")
-        print(f"{e=}")
+        logger.error("couldn't read the config.toml")
+        logger.error(f"{e=}")
         sys.exit(1)
 
     s = prepare_socket()
-    print(f"<> good, ready to connect to {remote_host}:{remote_port}")
+    logger.info(f"<> good, ready to connect to {remote_host}:{remote_port}")
 
     main_loop2(
         s,
