@@ -32,12 +32,14 @@ def assert_never_seq(rest):
 Addr = tuple[str, int]
 def timeout_recv(
     s: socket.socket,
-    timeout: Optional[float] = None
+    *,
+    timeout: Optional[float] = None,
+    buff_len: int = 1000,
 ) -> Optional[tuple[bytes, Addr]]:
     ok_read, _, _ = select.select([s], [], [], timeout)
     if ok_read:
         s = ok_read[0]
-        msg, addr = s.recvfrom(100)
+        msg, addr = s.recvfrom(buff_len)
         return msg, addr
     else:
         return None
@@ -122,13 +124,16 @@ class ReUDP:
 
     def __exit__(self, *args, **kwargs):
         self.end = True
-        # tick one more time, to maybe send ack back
-        self.tick()
         # exit from the remote server mapping
         disconnect(self.s, self.our_id, self.peer_id, self.remote)
 
-        while self.try_resend_lost(0.05) != 0:
-            pass
+        # try to ensure that all the messages are sent at the end
+        # won't work if our peer is disconnected first, of course
+        for _ in range(10):
+            self.handle_messages(timeout=0.05)
+            if self.try_resend_lost(timeout=0.05) == 0:
+                break
+
         # print stats, because why not :3
         self.stats.print_results()
 
@@ -160,8 +165,8 @@ class ReUDP:
         #print(f"-> {msg!r}")
         self.s.sendto(msg, self.peer)
 
-    def raw_get(self) -> Optional[tuple[bytes, Addr]]:
-        if (res := timeout_recv(self.s, 0.15)) is not None:
+    def raw_get(self, *, timeout: float = 0.15) -> Optional[tuple[bytes, Addr]]:
+        if (res := timeout_recv(self.s, timeout=timeout)) is not None:
             #data, addr = res
             #print(f"<- {data!r}")
             return res
@@ -183,7 +188,7 @@ class ReUDP:
     def ack_msg(i: int) -> bytes:
         return f"ack:{i}".encode('utf-8')
 
-    def try_resend_lost(self, timeout = 0.1) -> int:
+    def try_resend_lost(self, *, timeout = 0.1) -> int:
         to_resend = []
         for (i, (_, time_sent, is_done)) in self.sent.items():
             if is_done:
@@ -270,8 +275,8 @@ class ReUDP:
                 raise RuntimeError(f"unexpected message: {payload!r}")
 
 
-    def check_messages(self) -> Optional[TickResult]:
-        if (res := self.raw_get()) is not None:
+    def handle_messages(self, *, timeout: float = 0.15) -> Optional[TickResult]:
+        if (res := self.raw_get(timeout=timeout)) is not None:
             payload, addr = res
             if addr == self.remote:
                 self.handle_remote(payload)
@@ -318,7 +323,7 @@ class ReUDP:
 
     def tick(self, *, attempts: int = 10) -> TickResult:
         for _ in range(attempts):
-            ret = self.check_messages()
+            ret = self.handle_messages()
             self.try_resend_lost()
             if ret is not None:
                 return ret
@@ -401,7 +406,7 @@ def first_peer_fetch(
         same_line_print(i, f"<> requesting the connection {numbering}")
 
         # check the mailbox
-        if (res := timeout_recv(s, 2)) is not None:
+        if (res := timeout_recv(s, timeout=2)) is not None:
             msg, sender_addr = res
             # if the message from server, we got it
             if sender_addr == remote:
@@ -608,7 +613,7 @@ def establish_connection2(
         if stats.failed_enough(10):
             s = try_to_reconnect(s, our_id, peer_id, remote)
 
-        if (res := timeout_recv(s, 0.15)) is not None:
+        if (res := timeout_recv(s, timeout=0.15)) is not None:
             msg, addr = res
             if addr != peer:
                 if addr == remote:
@@ -696,7 +701,7 @@ def play_loop2(
                 print("<> failure, trying to reconnect")
                 s = try_to_reconnect(s, our_id, peer_id, remote)
 
-            if (res := timeout_recv(s, 0.15)) is not None:
+            if (res := timeout_recv(s, timeout=0.15)) is not None:
                 msg, addr = res
                 if addr != peer:
                     if addr == remote:
