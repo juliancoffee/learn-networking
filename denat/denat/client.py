@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-from typing import Optional, Literal
-
-import enum
-import random
 import copy
-import time
-import socket
-import select
-import sys
-import tomllib
+import enum
 import itertools
 import logging
+import random
+import select
+import socket
+import sys
+import time
+import tomllib
+from typing import Literal, Optional
+
 from .t import assert_never_seq, unreachable
 
 # utils

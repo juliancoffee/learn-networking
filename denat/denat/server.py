@@ -1,11 +1,8 @@
-from typing import Optional, Never
-
 import select
 import socket
 import sys
-
 from datetime import datetime
-
+from typing import Never, Optional
 
 # pair of addresses
 Addr = tuple[str, int]

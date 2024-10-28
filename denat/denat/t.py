@@ -1,5 +1,5 @@
-from typing import Never, overload
 from collections.abc import Sequence
+from typing import Never, overload
 
 
 def unreachable(*args, **kwargs) -> Never:
