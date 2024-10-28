@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Optional, Never, overload, assert_never, Literal
+from typing import Optional, Never, overload, Literal
 
 import enum
 import random
@@ -535,7 +535,7 @@ class Stats:
             remote = self.remote_counter - self.last.remote_counter
             ns_passed = time.time_ns() - self.last.ns
 
-        print(f"miss/got/other: {miss}/{got}/{other}")
+        print(f"miss/got/other/remote: {miss}/{got}/{other}/{remote}")
         ms_passed = ns_passed / (10 ** 6)
         print(f"time: {ms_passed} milliseconds")
 
