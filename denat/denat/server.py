@@ -157,7 +157,7 @@ def handle_exit(mapping: Mapping, our_addr: Addr, msg: str):
     mapping.remove_from_entry(our_addr, id_pair)
 
 
-def loop() -> Never:
+def main() -> Never:
     try:
         port = int(sys.argv[1])
         print(f"<> using port: {port}")
@@ -188,4 +188,4 @@ def loop() -> Never:
                 handle_exit(mapping, our_addr, msg)
 
 if __name__ == "__main__":
-    loop()
+    main()

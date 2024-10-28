@@ -6,6 +6,10 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = []
 
+[project.scripts]
+denat-client = "denat.client:main"
+denat-server = "denat.server:main"
+
 [tool.mypy]
 python_version = 3.11
 warn_unused_configs = true

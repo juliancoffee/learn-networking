@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import Optional, Never, overload, Literal
+from typing import Optional, Literal
 
 import enum
 import random
@@ -13,24 +12,11 @@ import sys
 import tomllib
 import itertools
 import logging
+from .t import assert_never_seq, unreachable
 
 # utils
 logging.basicConfig()
 logger = logging.getLogger(__name__)
-def unreachable(*args, **kwargs) -> Never:
-    if args or kwargs:
-        raise RuntimeError("this shouldn't be reachable:\n{args=}\n{kwargs=}")
-    else:
-        raise RuntimeError("this should be reachable")
-
-@overload
-def assert_never_seq(rest: Never) -> Never: pass
-
-@overload
-def assert_never_seq(rest: Sequence[Never]) -> Never: pass
-
-def assert_never_seq(rest):
-    unreachable(rest)
 
 Addr = tuple[str, int]
 def timeout_recv(
