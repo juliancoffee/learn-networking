@@ -171,19 +171,19 @@ class ReUDP:
             return None
 
     def syn_msg(self) -> bytes:
-        return f"init_syn:{self.init_x}".encode("utf-8")
+        return f"init_syn:{self.init_x}".encode()
 
     @staticmethod
     def init_ack_msg(init_y: int) -> bytes:
-        return f"init_ack:{init_y}".encode("utf-8")
+        return f"init_ack:{init_y}".encode()
 
     @staticmethod
     def packed_msg(i: int, msg: str) -> bytes:
-        return f"msg:{i}:{msg}".encode("utf-8")
+        return f"msg:{i}:{msg}".encode()
 
     @staticmethod
     def ack_msg(i: int) -> bytes:
-        return f"ack:{i}".encode("utf-8")
+        return f"ack:{i}".encode()
 
     def try_resend_lost(self, *, timeout=0.1) -> int:
         to_resend = []
@@ -583,10 +583,10 @@ def establish_connection2(
     """
 
     def syn_msg(rand_x: int) -> bytes:
-        return f"init_syn:{rand_x}".encode("utf-8")
+        return f"init_syn:{rand_x}".encode()
 
     def ack_msg(y: int) -> bytes:
-        return f"init_ack:{y}".encode("utf-8")
+        return f"init_ack:{y}".encode()
 
     logger.info("<> initiating connection")
     peer = first_peer_fetch(s, our_id, peer_id, remote)
