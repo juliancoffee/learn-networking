@@ -1,0 +1,7 @@
+[project]
+name = "denat"
+version = "0.0.1"
+description = "A set of tools for establishing peer-to-peer connections"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
