@@ -14,3 +14,6 @@ denat-server = "denat.server:main"
 python_version = 3.11
 warn_unused_configs = true
 check_untyped_defs = true
+
+[tool.ruff]
+line-length = 80

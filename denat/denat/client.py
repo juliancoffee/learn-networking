@@ -19,6 +19,8 @@ logging.basicConfig()
 logger = logging.getLogger(__name__)
 
 Addr = tuple[str, int]
+
+
 def timeout_recv(
     s: socket.socket,
     *,
@@ -32,7 +34,10 @@ def timeout_recv(
         return msg, addr
     else:
         return None
+
+
 # end of utils
+
 
 # ReUDP
 class TickResult(enum.Enum):
@@ -46,13 +51,15 @@ class TickResult(enum.Enum):
     DupOrEarly = enum.auto()
     Timeout = enum.auto()
 
+
 HandleResult = Literal[
-        TickResult.GotInitSyn,
-        TickResult.GotInitAck,
-        TickResult.GotMsg,
-        TickResult.GotAck,
-        TickResult.DupOrEarly,
-    ]
+    TickResult.GotInitSyn,
+    TickResult.GotInitAck,
+    TickResult.GotMsg,
+    TickResult.GotAck,
+    TickResult.DupOrEarly,
+]
+
 
 def register(stats: Stats, res: HandleResult) -> None:
     match res:
@@ -63,8 +70,9 @@ def register(stats: Stats, res: HandleResult) -> None:
         case TickResult.DupOrEarly:
             stats.other()
 
+
 class ReUDP:
-    """ Re_liable_UDP object to use with deNAT
+    """Re_liable_UDP object to use with deNAT
 
     Guarantees:
         - All messages will be delivered.
@@ -106,7 +114,6 @@ class ReUDP:
         # start a handshake
         init_syn = self.syn_msg()
         self.raw_send(init_syn)
-
 
     def __enter__(self):
         return self
@@ -164,23 +171,23 @@ class ReUDP:
             return None
 
     def syn_msg(self) -> bytes:
-        return f"init_syn:{self.init_x}".encode('utf-8')
+        return f"init_syn:{self.init_x}".encode("utf-8")
 
     @staticmethod
     def init_ack_msg(init_y: int) -> bytes:
-        return f"init_ack:{init_y}".encode('utf-8')
+        return f"init_ack:{init_y}".encode("utf-8")
 
     @staticmethod
     def packed_msg(i: int, msg: str) -> bytes:
-        return f"msg:{i}:{msg}".encode('utf-8')
+        return f"msg:{i}:{msg}".encode("utf-8")
 
     @staticmethod
     def ack_msg(i: int) -> bytes:
-        return f"ack:{i}".encode('utf-8')
+        return f"ack:{i}".encode("utf-8")
 
-    def try_resend_lost(self, *, timeout = 0.1) -> int:
+    def try_resend_lost(self, *, timeout=0.1) -> int:
         to_resend = []
-        for (i, (_, time_sent, is_done)) in self.sent.items():
+        for i, (_, time_sent, is_done) in self.sent.items():
             if is_done:
                 continue
             if time.monotonic() - time_sent < timeout:
@@ -200,7 +207,7 @@ class ReUDP:
         self.peer = peer
 
     def handle_peer(self, payload: bytes) -> HandleResult:
-        data = payload.decode('utf-8').split(":")
+        data = payload.decode("utf-8").split(":")
         match data:
             case ["init_ack", x_str] if int(x_str) == self.init_x:
                 self.us_ok = True
@@ -264,7 +271,6 @@ class ReUDP:
                 breakpoint()
                 raise RuntimeError(f"unexpected message: {payload!r}")
 
-
     def handle_messages(self, *, timeout: float = 0.15) -> Optional[TickResult]:
         if (res := self.raw_get(timeout=timeout)) is not None:
             payload, addr = res
@@ -282,7 +288,8 @@ class ReUDP:
                     case (
                         TickResult.GotInitSyn
                         | TickResult.GotInitAck
-                        | TickResult.DupOrEarly):
+                        | TickResult.DupOrEarly
+                    ):
                         return None
                     case rest:
                         assert_never_seq(rest)
@@ -348,7 +355,9 @@ class ReUDP:
         self.raw_send(self.packed_msg(i, msg))
         self.sent[i] = msg, time.monotonic(), False
 
+
 # end of ReUDP
+
 
 def make_peer_req(
     s: socket.socket,
@@ -357,13 +366,15 @@ def make_peer_req(
     remote: Addr,
 ) -> None:
     req = f"JOIN#{our_id}@{peer_id}"
-    s.sendto(req.encode('utf-8'), remote)
+    s.sendto(req.encode("utf-8"), remote)
+
 
 def parse_addr(addr_string: str) -> Addr:
     host, port_string = addr_string.split(":")
     port = int(port_string)
 
     return host, port
+
 
 def parse_server_msg(msg: bytes) -> tuple[Addr, Addr]:
     our_addr_string, peer_addr_string = msg.decode("utf-8").split(";")
@@ -372,13 +383,13 @@ def parse_server_msg(msg: bytes) -> tuple[Addr, Addr]:
 
     return our, peer
 
+
 def first_peer_fetch(
     s: socket.socket,
     our_id: str,
     peer_id: str,
     remote: Addr,
 ) -> tuple[str, int]:
-
     server_msg = None
     for i in itertools.count():
         # declare that we exist
@@ -406,6 +417,7 @@ def first_peer_fetch(
     # finally return response
     return peer
 
+
 def disconnect(
     s: socket.socket,
     our_id: str,
@@ -413,7 +425,7 @@ def disconnect(
     remote: Addr,
 ) -> None:
     req = f"EXIT#{our_id}@{peer_id}"
-    s.sendto(req.encode('utf-8'), remote)
+    s.sendto(req.encode("utf-8"), remote)
     logger.info("<> requested exit")
 
 
@@ -424,8 +436,10 @@ def prepare_socket(port: Optional[int] = None) -> socket.socket:
             logger.info(f"<> using src port: {port}")
         except (ValueError, IndexError):
             port = 9_990
-            logger.warning("<> couldn't get the src port from arguments."
-                  f" Using default src port: {port}")
+            logger.warning(
+                "<> couldn't get the src port from arguments."
+                f" Using default src port: {port}"
+            )
 
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     while True:
@@ -464,7 +478,7 @@ class Stats:
         self.ns = 0.0
 
     def reset(self):
-        """ Restart timer """
+        """Restart timer"""
         self.start = time.time_ns()
 
         self.last = None
@@ -522,7 +536,7 @@ class Stats:
             ns_passed = time.time_ns() - self.last.ns
 
         print(f"miss/got/other/remote: {miss}/{got}/{other}/{remote}")
-        ms_passed = ns_passed / (10 ** 6)
+        ms_passed = ns_passed / (10**6)
         print(f"time: {ms_passed} milliseconds")
 
         self.last = copy.deepcopy(self)
@@ -536,14 +550,12 @@ class Stats:
         print(f"remote:\n\t{self.remote_counter}")
         print(f"meta:\n\t{self.meta_counter}")
         print(f"other:\n\t{self.other_counter}")
-        ms_passed = (time.time_ns() - self.start) / (10 ** 6)
+        ms_passed = (time.time_ns() - self.start) / (10**6)
         print(f"time:\n\t{ms_passed} miliseconds")
 
+
 def try_to_reconnect(
-    s: socket.socket,
-    our_id: str,
-    peer_id: str,
-    remote: Addr
+    s: socket.socket, our_id: str, peer_id: str, remote: Addr
 ) -> socket.socket:
     # because both peers probably will try to reconnect
     # add some randomness to the process
@@ -556,6 +568,7 @@ def try_to_reconnect(
     make_peer_req(s, our_id, peer_id, remote)
     return s
 
+
 def establish_connection2(
     stats: Stats,
     s: socket.socket,
@@ -563,15 +576,17 @@ def establish_connection2(
     peer_id: str,
     remote: Addr,
 ) -> tuple[socket.socket, Addr]:
-    """ Try to establish a connection
+    """Try to establish a connection
 
     It's possible that portion of this protocol will leak to the next
     stage, so you'll need to handle potential syn() from the peer.
     """
+
     def syn_msg(rand_x: int) -> bytes:
-        return f"init_syn:{rand_x}".encode('utf-8')
+        return f"init_syn:{rand_x}".encode("utf-8")
+
     def ack_msg(y: int) -> bytes:
-        return f"init_ack:{y}".encode('utf-8')
+        return f"init_ack:{y}".encode("utf-8")
 
     logger.info("<> initiating connection")
     peer = first_peer_fetch(s, our_id, peer_id, remote)
@@ -612,7 +627,7 @@ def establish_connection2(
                     breakpoint()
                 continue
 
-            data = msg.decode('utf-8').split(":")
+            data = msg.decode("utf-8").split(":")
             match data:
                 case ["init_ack", x_str] if int(x_str) == init_x:
                     us_ok = True
@@ -629,6 +644,7 @@ def establish_connection2(
 
     logger.info("<> connection is probably stable")
     return s, peer
+
 
 def main_loop2(
     s: socket.socket,
@@ -650,7 +666,6 @@ def main_loop2(
                 case _:
                     return False
 
-
     def next_pick(turn: int) -> str:
         pick = random.choice(["paper", "rock", "scissors"])
         print(f"<*> on turn {turn} we picked: {pick}")
@@ -670,6 +685,7 @@ def main_loop2(
                     else:
                         print("we lost :(")
                     break
+
 
 def main() -> None:
     logger.setLevel(logging.INFO)
@@ -705,6 +721,7 @@ def main() -> None:
         peer_id,
         remote,
     )
+
 
 if __name__ == "__main__":
     main()
