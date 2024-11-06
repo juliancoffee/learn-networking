@@ -32,5 +32,7 @@ select = [
     "SIM",
     # isort
     "I",
+    # ruff specific
+    #"RUF",
 ]
 ignore = ["UP007"]
