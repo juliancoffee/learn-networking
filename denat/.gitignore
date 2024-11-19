@@ -1,1 +1,6 @@
+# app specific data
 config.toml
+
+# python's stuff
+__pycache__
+*.egg-info

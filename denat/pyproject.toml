@@ -1,0 +1,38 @@
+[project]
+name = "denat"
+version = "0.0.1"
+description = "A set of tools for establishing peer-to-peer connections"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+denat-client = "denat.client:main"
+denat-server = "denat.server:main"
+
+[tool.mypy]
+python_version = 3.11
+warn_unused_configs = true
+check_untyped_defs = true
+
+[tool.ruff]
+line-length = 80
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # pyflakes,
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+    # ruff specific
+    #"RUF",
+]
+ignore = ["UP007"]
