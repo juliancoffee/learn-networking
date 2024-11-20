@@ -1,0 +1,5 @@
+# Python
+__pycache__
+
+# django
+db.sqlite3
