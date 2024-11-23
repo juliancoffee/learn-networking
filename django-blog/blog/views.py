@@ -11,7 +11,7 @@ def index(request) -> HttpResponse:
     })
     return response
 
-def read(request, post_id):
+def detail(request, post_id):
     p = Post.objects.get(pk=post_id)
     response = JsonResponse({
         "post": p.post_text,
