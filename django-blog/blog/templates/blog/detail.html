@@ -1,4 +1,8 @@
+{% extends "./base.html" %}
+
+{% block content %}
 <pre>{{ post.post_text }}</pre>
+<em> Written: {{ post.pub_date }} </em>
 {% if comments %}
     <ul>
         {% for comment in comments %}
@@ -13,3 +17,4 @@
     <input type="text" id="comment" name="comment">
     <input type="submit" value="Meow!">
 </form>
+{% endblock %}

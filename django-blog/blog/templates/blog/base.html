@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>{% block title %}My Django blog{% endblock %}</title>
+</head>
+<body>
+    <header>
+        <a href="{% url 'blog:index' %}"> * Blog</a>
+    </header>
+    {% block content %}{% endblock %}
+</body>
+</html>
