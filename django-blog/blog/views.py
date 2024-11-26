@@ -11,7 +11,15 @@ from .models import Post
 
 # Create your views here.
 def index(request) -> HttpResponse:
-    posts = Post.objects.order_by("-pub_date")
+    # only show posts that already have been published
+    # i. e. ones with pub_date less than or equal to 'now'
+    #
+    # p. s. that's the weirdest ORM syntax I've ever seen (not that I've seen
+    # many)
+    # p. p. s and of course, mypy can't catch any mistakes here, that sucks
+    posts = Post.objects.filter(pub_date__lte=timezone.now()).order_by(
+        "-pub_date"
+    )
     context = {"post_list": posts}
     return render(request, "blog/index.html", context)
 
