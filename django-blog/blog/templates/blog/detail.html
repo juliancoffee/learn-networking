@@ -2,7 +2,9 @@
 
 {% block content %}
 <pre>{{ post.post_text }}</pre>
-<em> Written: {{ post.pub_date }} </em>
+<span>
+    <em> Written: {{ post.pub_date }} </em>
+<span>
 {% if comments %}
     <ul>
         {% for comment in comments %}
