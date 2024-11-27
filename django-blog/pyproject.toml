@@ -10,6 +10,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "django-debug-toolbar>=4.4.6",
     "django-stubs[compatible-mypy]>=5.1.1",
     "mypy>=1.13.0",
     "ruff>=0.8.0",
@@ -45,6 +46,8 @@ select = [
 ignore = [
     # I don't agree that Optional should be deprecated
     "UP007",
+    # ok, ClassVar is great, but... no
+    "RUF012",
     # ruff should re-format long lines anyway, if possible
     "E501",
 ]
