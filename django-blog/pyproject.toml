@@ -42,6 +42,16 @@ select = [
     "I",
     # ruff specific
     "RUF",
+    # type checking
+    "TC",
+    # pylint
+    "PL",
+    # django's stuff
+    "DJ",
+    # datetime
+    "DTZ",
+    # simplify lint
+    "SIM",
 ]
 ignore = [
     # I don't agree that Optional should be deprecated
