@@ -10,23 +10,28 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
+import os
 from pathlib import Path
+
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / ".env")
 
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = (
-    "django-insecure-3x9tp!e%2(3=2=v^8=ub^k-ue5hbas8$zp67_ly-@m0d%szdr2"
-)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+if os.environ["DEBUG"].upper() == "TRUE":
+    DEBUG = True
+elif os.environ["DEBUG"].upper() == "FALSE":
+    DEBUG = False
+else:
+    raise ValueError(f"invalid DEBUG value: {os.environ['DEBUG']}")
 
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = os.environ["SECRET_KEY"]
+
+# See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 ALLOWED_HOSTS: list[str] = []
 INTERNAL_IPS = [
     "127.0.0.1",
@@ -86,7 +91,7 @@ DATABASES = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": "postgres",
         "USER": "postgres",
-        "PASSWORD": "dev",
+        "PASSWORD": os.environ["DB_PASSWORD"],
         "HOST": "localhost",
         "PORT": "5432",
     }
