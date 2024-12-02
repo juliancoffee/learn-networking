@@ -11,6 +11,13 @@ services:
     environment:
       POSTGRES_PASSWORD: dev
 
+  web-proxy:
+    build:
+      context: .
+      dockerfile: proxy.Dockerfile
+    ports:
+      - 8000:80
+
   adminer:
     image: adminer
     restart: always
