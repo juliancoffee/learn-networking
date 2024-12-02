@@ -21,18 +21,14 @@ load_dotenv(BASE_DIR / ".env")
 
 
 # SECURITY WARNING: don't run with debug turned on in production!
-if os.environ["DEBUG"].upper() == "TRUE":
-    DEBUG = True
-elif os.environ["DEBUG"].upper() == "FALSE":
-    DEBUG = False
-else:
-    raise ValueError(f"invalid DEBUG value: {os.environ['DEBUG']}")
+DEBUG = "DEBUG" in os.environ
+DJDT = "DJDT" in os.environ
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ["SECRET_KEY"]
 
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
-ALLOWED_HOSTS: list[str] = []
+ALLOWED_HOSTS = ["127.0.0.1"]
 INTERNAL_IPS = [
     "127.0.0.1",
 ]
@@ -42,7 +38,6 @@ INTERNAL_IPS = [
 
 INSTALLED_APPS = [
     "blog.apps.BlogConfig",
-    "debug_toolbar",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -52,7 +47,6 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    "debug_toolbar.middleware.DebugToolbarMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -61,6 +55,16 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+if DJDT:
+    INSTALLED_APPS = [
+        "debug_toolbar",
+        *INSTALLED_APPS,
+    ]
+    MIDDLEWARE = [
+        *MIDDLEWARE,
+        "debug_toolbar.middleware.DebugToolbarMiddleware",
+    ]
 
 ROOT_URLCONF = "mysite.urls"
 
