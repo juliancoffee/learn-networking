@@ -5,24 +5,32 @@ services:
     # postgres needs more shared memory, MOAR
     shm_size: 128mb
     ports:
-      - 5432:5432
+      - 127.0.0.1:5432:5432
     volumes:
       - database:/var/lib/postgresql/data
     environment:
-      POSTGRES_PASSWORD: dev
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
 
   web-proxy:
     build:
       context: .
-      dockerfile: proxy.Dockerfile
+      dockerfile: Dockerfile
     ports:
       - 8000:80
+      # docker build hates me for this, but docker-compose doesn't seem to mind
+    environment:
+      - SECRET_KEY=${SECRET_KEY}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=db
+      - STATIC_ROOT=/data/static
+    depends_on:
+      - db
 
   adminer:
     image: adminer
     restart: always
     ports:
-      - 8080:8080
+      - 127.0.0.1:8080:8080
 
 volumes:
   database:
