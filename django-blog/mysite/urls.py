@@ -17,9 +17,11 @@ Including another URLconf
 
 from debug_toolbar.toolbar import debug_toolbar_urls  # type: ignore
 from django.contrib import admin
+from django.shortcuts import redirect
 from django.urls import include, path
 
 urlpatterns = [
+    path("", lambda request: redirect("blog/", permanent=False)),
     path("blog/", include("blog.urls")),
     path("admin/", admin.site.urls),
     *debug_toolbar_urls(),
