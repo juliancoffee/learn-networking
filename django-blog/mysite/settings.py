@@ -28,10 +28,16 @@ DJDT = "DJDT" in os.environ
 SECRET_KEY = os.environ["SECRET_KEY"]
 
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
-ALLOWED_HOSTS = ["127.0.0.1"]
+ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
 INTERNAL_IPS = [
     "127.0.0.1",
 ]
+
+# NOTE: This is rather a hack, imo, but I don't know how to make it better
+#
+# The issue stems from the fact that I'm using nginx and it somehow breaks
+# the origin headers
+CSRF_TRUSTED_ORIGINS = ["http://127.0.0.1:8000"]
 
 
 # Application definition
@@ -50,6 +56,10 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    # yep, it does what it says, it crashes Django
+    # "mysite.middleware.CrashMiddleware",
+    # this one is for better debugging than out-of-the-box one
+    # "verbose_csrf_middleware.CsrfViewMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
