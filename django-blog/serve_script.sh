@@ -20,7 +20,7 @@ echo "<> running migrations"
 uv run manage.py migrate
 
 echo "<> running the server"
-uv run manage.py runserver &
+uv run gunicorn -w 4 mysite.wsgi &
 
 # run nginx
 echo "<> run nginx"
