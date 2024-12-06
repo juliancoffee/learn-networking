@@ -13,3 +13,13 @@ also will rebuild web server Dockerfile.
 ```bash
 $ ./start_docker.sh
 ```
+
+Another option is to run only DB and adminer, and then run the server locally.
+Run this one in one shell.
+```bash
+$ ./simple_start.sh
+```
+Run this one in the other (check .env.example file for environment variables).
+```bash
+$ uv run manage.py runserver
+```
